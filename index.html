@@ -176,9 +176,20 @@ nav{background:var(--sf);border-bottom:1px solid var(--b);padding:0 24px;display
           onfocus="this.style.borderColor='var(--ac)'" onblur="this.style.borderColor='var(--b2)'">
       </div>
       <div>
-        <div style="font-size:11px;color:var(--tx3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Session / Notes</div>
-        <input type="text" id="matchSession" placeholder="e.g. Morning Session" maxlength="40"
-          style="background:var(--sf2);border:1.5px solid var(--b2);color:var(--tx);padding:7px 11px;border-radius:var(--r);font-family:'DM Sans',sans-serif;font-size:14px;width:180px;outline:none"
+        <div style="font-size:11px;color:var(--tx3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Session</div>
+        <select id="matchSession"
+          style="background:var(--sf2);border:1.5px solid var(--b2);color:var(--tx);padding:7px 11px;border-radius:var(--r);font-family:'DM Sans',sans-serif;font-size:14px;outline:none;cursor:pointer;min-width:140px"
+          onfocus="this.style.borderColor='var(--ac)'" onblur="this.style.borderColor='var(--b2)'">
+          <option value="Session 1">Session 1</option>
+          <option value="Session 2">Session 2</option>
+          <option value="Session 3">Session 3</option>
+          <option value="Session 4">Session 4</option>
+        </select>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--tx3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Notes <span style="color:var(--tx3);font-weight:400">(optional)</span></div>
+        <input type="text" id="matchNotes" placeholder="e.g. Friendly match, KL Open..." maxlength="80"
+          style="background:var(--sf2);border:1.5px solid var(--b2);color:var(--tx);padding:7px 11px;border-radius:var(--r);font-family:'DM Sans',sans-serif;font-size:14px;width:220px;outline:none"
           onfocus="this.style.borderColor='var(--ac)'" onblur="this.style.borderColor='var(--b2)'">
       </div>
       <div id="courtPreview" style="font-size:13px;color:var(--tx2);padding:8px 14px;background:var(--acbg);border:1px solid #b8d0f0;border-radius:var(--r)">
@@ -1187,15 +1198,18 @@ async function pushToSheets(type, payload) {
 }
 
 function getMatchMeta() {
-  const date    = document.getElementById('matchDate')?.value || 'Unknown Date';
-  const session = document.getElementById('matchSession')?.value || '';
+  const date    = document.getElementById('matchDate')?.value || '';
+  const session = document.getElementById('matchSession')?.value || 'Session 1';
+  const notes   = document.getElementById('matchNotes')?.value?.trim() || '';
   // Format date nicely: 2026-07-24 → 24 Jul 2026
   let displayDate = date;
   try {
     const d = new Date(date + 'T00:00:00');
     displayDate = d.toLocaleDateString('en-MY',{day:'2-digit',month:'short',year:'numeric'});
   } catch(e){}
-  return { date, displayDate, session, label: session ? `${displayDate} — ${session}` : displayDate };
+  // Unique key = date + session (used to append, not overwrite)
+  const sheetKey = displayDate + ' | ' + session;
+  return { date, displayDate, session, notes, sheetKey, label: sheetKey };
 }
 
 async function syncLuckyDraw() {
@@ -1215,7 +1229,8 @@ async function syncLuckyDraw() {
     const result = drawResults[i];
     return [
       meta.displayDate,
-      meta.session || '—',
+      meta.session,
+      meta.notes||'—',
       name,
       result ? result.name : '—',
       result ? result.desc : 'No prize',
@@ -1223,7 +1238,7 @@ async function syncLuckyDraw() {
     ];
   });
 
-  const ok = await pushToSheets('luckydraw', { rows, meta: meta.label });
+  const ok = await pushToSheets('luckydraw', { rows, meta: meta.label, sheetKey: meta.sheetKey });
   if (btn) { btn.textContent = '📤 Sync Lucky Draw'; btn.disabled = false; }
   showSyncToast(ok ? `✓ Lucky draw results sent to Google Sheets` : '✗ Sync failed', ok);
 }
@@ -1266,7 +1281,7 @@ async function syncPlayers() {
   if (btn) { btn.textContent = '⏳ Syncing…'; btn.disabled = true; }
   const meta  = getMatchMeta();
   const pList = [...document.querySelectorAll('.pinp')].map(i => i.value.trim()).filter(Boolean);
-  const ok = await pushToSheets('players', { players: pList, meta: meta.label, date: meta.displayDate, session: meta.session||'—' });
+  const ok = await pushToSheets('players', { players: pList, meta: meta.label, date: meta.displayDate, session: meta.session, notes: meta.notes, sheetKey: meta.sheetKey });
   if (btn) { btn.textContent = '📤 Sync Players'; btn.disabled = false; }
   showSyncToast(`✓ ${pList.length} players sent to Google Sheets — check your sheet to confirm`);
 }
@@ -1285,8 +1300,8 @@ async function syncRankings() {
     return { name, s1, s2, s3, total: s1+s2+s3 };
   }).filter(r => r.total > 0).sort((a,b) => b.total - a.total);
 
-  const rows = allStats.map((r, i) => [meta.displayDate, meta.session||'—', i+1, r.name, r.s1||'', r.s2||'', r.s3||'', r.total]);
-  const ok = await pushToSheets('rankings', { rows, meta: meta.label });
+  const rows = allStats.map((r, i) => [meta.displayDate, meta.session, meta.notes||'—', i+1, r.name, r.s1||'', r.s2||'', r.s3||'', r.total]);
+  const ok = await pushToSheets('rankings', { rows, meta: meta.label, sheetKey: meta.sheetKey });
   if (btn) { btn.textContent = '📤 Sync Rankings'; btn.disabled = false; }
   showSyncToast(`✓ Rankings sent to Google Sheets — check your sheet to confirm`);
 }
@@ -1306,7 +1321,7 @@ async function syncMatchResults() {
         const sB = game.sB !== '' ? parseFloat(game.sB) : '';
         if (sA !== '' || sB !== '') {
           const meta2 = getMatchMeta();
-          rows.push([meta2.displayDate, meta2.session||'—', setLabel, court.label || `Court ${ci+1}`, `Game ${gi+1}`, teamA, sA, sB, teamB]);
+          rows.push([meta2.displayDate, meta2.session, meta2.notes||'—', setLabel, court.label || `Court ${ci+1}`, `Game ${gi+1}`, teamA, sA, sB, teamB]);
         }
       });
     });
