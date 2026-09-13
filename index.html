@@ -1778,29 +1778,31 @@ function renderLadder() {
 }
 
 function saveScore(inp) {
-  var key  = inp.dataset.key;
-  var side = inp.dataset.side;
-  var val  = inp.value;
+  var key   = inp.dataset.key;
+  var side  = inp.dataset.side;
+  var val   = inp.value;
+  var field = (side === 'a') ? 'sA' : 'sB';   // always store as sA / sB
   if (!ladderState.scores[key]) ladderState.scores[key] = {sA:'',sB:''};
-  ladderState.scores[key][side] = val;
+  ladderState.scores[key][field] = val;
 
   var cfg = getConfig();
   var v   = parseFloat(val);
   if (!isNaN(v) && val !== '') {
     if (v < cfg.maxPts) {
-      var other = side==='a' ? 'b' : 'a';
-      ladderState.scores[key][other] = String(cfg.maxPts);
+      var other      = side==='a' ? 'b' : 'a';
+      var otherField = (other === 'a') ? 'sA' : 'sB';
+      ladderState.scores[key][otherField] = String(cfg.maxPts);
       var otherInp = document.querySelector('[data-key="'+key+'"][data-side="'+other+'"]');
       if (otherInp && otherInp !== inp) otherInp.value = String(cfg.maxPts);
     }
-    if (v > cfg.maxPts) { ladderState.scores[key][side] = String(cfg.maxPts); inp.value = String(cfg.maxPts); }
+    if (v > cfg.maxPts) { ladderState.scores[key][field] = String(cfg.maxPts); inp.value = String(cfg.maxPts); }
   }
 
   var sc  = ladderState.scores[key];
   var el2 = document.getElementById('d_'+key);
   if (!el2) return;
-  var vA2=parseFloat(sc.sA), vB2=parseFloat(sc.sB);
-  if (!isNaN(vA2) && !isNaN(vB2) && sc.sA!=='' && sc.sB!=='') {
+  var vA2=parseFloat(sc.sA||sc.a||''), vB2=parseFloat(sc.sB||sc.b||'');
+  if (!isNaN(vA2) && !isNaN(vB2) && (sc.sA!==''||sc.a!=='') && (sc.sB!==''||sc.b!=='')) {
     var dA=vA2-vB2, dB=vB2-vA2;
     var ci2 = parseInt(key.split('c')[1]);
     var act = getActivePlayers(ci2);
@@ -1818,9 +1820,7 @@ function nextRound(ci) {
   var sc  = ladderState.scores[key];
 
   if (!sc || sc.sA==='' || sc.sB==='') {
-    var msg = 'Enter scores for ' + ct.label + ' first.\n';
-    msg += 'Debug: key=' + key + ', scores=' + JSON.stringify(ladderState.scores);
-    alert(msg);
+    alert('Enter scores for ' + ct.label + ' before clicking Next Round.');
     return;
   }
 
