@@ -1934,7 +1934,73 @@ function nextRound(ci) {
     if (ladderState.courtRound[k] > ladderState.round) ladderState.round = ladderState.courtRound[k];
   });
 
+  // ── Reshuffle ALL courts to avoid repeated partnerships ─────────────────
+  // Track who just partnered whom this round
+  if (!ladderState.recentPartners) ladderState.recentPartners = {};
+  // Decay old partner counts so recent history matters more than distant history
+  Object.keys(ladderState.recentPartners).forEach(function(k) {
+    ladderState.recentPartners[k] = Math.max(0, ladderState.recentPartners[k] - 1);
+    if (ladderState.recentPartners[k] === 0) delete ladderState.recentPartners[k];
+  });
+  // Record partners from this round
+  [tA, tB].forEach(function(team) {
+    if (team.length >= 2) {
+      var key1 = team[0]+'|'+team[1];
+      var key2 = team[1]+'|'+team[0];
+      ladderState.recentPartners[key1] = (ladderState.recentPartners[key1]||0) + 1;
+      ladderState.recentPartners[key2] = (ladderState.recentPartners[key2]||0) + 1;
+    }
+  });
+
+  // For each court, reshuffle active players to mix up partnerships
+  // Use a smart shuffle that tries to avoid recent partners
+  ladderState.courts.forEach(function(ct2) {
+    var actives = ct2.playerNames.filter(function(n){
+      return ladderState.playerStatus[n]==='active';
+    });
+    var nonActives = ct2.playerNames.filter(function(n){
+      return ladderState.playerStatus[n]!=='active';
+    });
+    ct2.playerNames = smartShuffle(actives, ladderState.recentPartners).concat(nonActives);
+  });
+
   renderLadder();
+}
+
+function smartShuffle(players, recentPartners) {
+  // Shuffle players trying to avoid pairing recent partners
+  // Strategy: sort by "least recently partnered with neighbors"
+  if (players.length <= 2) return shuffle(players);
+  
+  var best = shuffle(players.slice()); // start with a random shuffle
+  var bestScore = partnerScore(best, recentPartners);
+  
+  // Try several shuffles and pick the one with least repeated partnerships
+  for (var attempt = 0; attempt < 20; attempt++) {
+    var candidate = shuffle(players.slice());
+    var score = partnerScore(candidate, recentPartners);
+    if (score < bestScore) {
+      best = candidate;
+      bestScore = score;
+      if (bestScore === 0) break; // perfect — no repeated partners
+    }
+  }
+  return best;
+}
+
+function partnerScore(order, recentPartners) {
+  // Score = sum of recent partner counts for (0,1) and (2,3) pairings
+  // Lower is better (fewer repeated partners)
+  var score = 0;
+  if (order.length >= 2) {
+    var k = order[0]+'|'+order[1];
+    score += recentPartners[k] || 0;
+  }
+  if (order.length >= 4) {
+    var k2 = order[2]+'|'+order[3];
+    score += recentPartners[k2] || 0;
+  }
+  return score;
 }
 
 function shuffle(arr) {
@@ -1950,13 +2016,15 @@ function ladderRankings() {
   var cfg    = getConfig();
   var totals = {};
 
-  // Seed ALL registered players so everyone appears even with 0 games
+  // Seed ALL registered players
   Object.keys(ladderState.registry || {}).forEach(function(name) {
     var p = ladderState.registry[name] || {};
-    totals[name] = {name:name, dupr:p.dupr||'', played:0, wins:0, losses:0, pts:0, history:[]};
+    totals[name] = {name:name, dupr:p.dupr||'', played:0, wins:0, losses:0, pts:0, byRound:{}, history:[]};
   });
 
-  // Process all scored rounds
+  // Track max round number seen
+  var maxRound = 0;
+
   Object.keys(ladderState.scores || {}).forEach(function(key) {
     var sc = ladderState.scores[key];
     if (!sc || !sc.tA || !sc.tB || sc.sA==='' || sc.sB==='') return;
@@ -1965,20 +2033,27 @@ function ladderRankings() {
     var parts = key.match(/c(\d+)r(\d+)/);
     var cNum = parts ? (parseInt(parts[1])+1) : '?';
     var rNum = parts ? parseInt(parts[2]) : '?';
+    if (rNum > maxRound) maxRound = rNum;
 
-    sc.tA.forEach(function(name) {
-      if (!totals[name]) totals[name]={name:name,dupr:'',played:0,wins:0,losses:0,pts:0,history:[]};
+    function addPlayer(name, diff, win, partner, vs, score) {
+      if (!totals[name]) totals[name]={name:name,dupr:'',played:0,wins:0,losses:0,pts:0,byRound:{},history:[]};
       totals[name].played++;
-      totals[name].pts += dA;
-      if (dA>=0) totals[name].wins++; else totals[name].losses++;
-      totals[name].history.push({c:cNum, r:rNum, partner:(sc.tA.filter(function(n){return n!==name;})[0]||''), vs:sc.tB.join(' & '), score:vA+'-'+vB, diff:dA, win:dA>=0});
+      totals[name].pts += diff;
+      if (win) totals[name].wins++; else totals[name].losses++;
+      // Store per-round pts (accumulate if multiple games same round)
+      totals[name].byRound[rNum] = (totals[name].byRound[rNum]||0) + diff;
+      totals[name].history.push({c:cNum, r:rNum, partner:partner, vs:vs, score:score, diff:diff, win:win});
+    }
+
+    var partnerA = sc.tA.filter(function(n){return n!==sc.tA[0];})[0]||'';
+    var partnerB = sc.tB.filter(function(n){return n!==sc.tB[0];})[0]||'';
+    sc.tA.forEach(function(name) {
+      var myPartner = sc.tA.filter(function(n){return n!==name;})[0]||'';
+      addPlayer(name, dA, dA>=0, myPartner, sc.tB.join(' & '), vA+'-'+vB);
     });
     sc.tB.forEach(function(name) {
-      if (!totals[name]) totals[name]={name:name,dupr:'',played:0,wins:0,losses:0,pts:0,history:[]};
-      totals[name].played++;
-      totals[name].pts += dB;
-      if (dB>=0) totals[name].wins++; else totals[name].losses++;
-      totals[name].history.push({c:cNum, r:rNum, partner:(sc.tB.filter(function(n){return n!==name;})[0]||''), vs:sc.tA.join(' & '), score:vB+'-'+vA, diff:dB, win:dB>=0});
+      var myPartner = sc.tB.filter(function(n){return n!==name;})[0]||'';
+      addPlayer(name, dB, dB>=0, myPartner, sc.tA.join(' & '), vB+'-'+vA);
     });
   });
 
@@ -1986,44 +2061,107 @@ function ladderRankings() {
     if (b.pts!==a.pts) return b.pts-a.pts;
     return b.wins-a.wins;
   });
+
   if (!rows.length) return '';
 
-  var o = '<div class="rank-section" style="margin-top:24px">';
-  o += '<div class="rank-title">Ladder Rankings &mdash; all rounds (' + rows.length + ' players)</div>';
-  o += '<div style="overflow-x:auto"><table class="tbl"><thead><tr>';
-  o += '<th>Rank</th><th class="L">Player</th><th>DUPR</th><th>Played</th><th>Won</th><th>Lost</th><th>Pts</th>';
-  o += '</tr></thead><tbody>';
+  // Build round header columns (1..maxRound)
+  var roundCols = [];
+  for (var r = 1; r <= maxRound; r++) roundCols.push(r);
 
-  rows.forEach(function(r,i) {
-    var pos=i+1;
-    var m=pos===1?'<span class="medal m1">1</span>':pos===2?'<span class="medal m2">2</span>':pos===3?'<span class="medal m3">3</span>':'';
-    var col=r.pts>0?'var(--green)':r.pts<0?'var(--red)':'var(--tx2)';
-    var b = getDuprBand(r.dupr||'', cfg);
+  var o = '<div class="rank-section" style="margin-top:24px">';
+  o += '<div class="rank-title">Ladder Rankings &mdash; ' + rows.length + ' players</div>';
+  o += '<div style="overflow-x:auto"><table class="tbl">';
+
+  // Header row 1: main cols + "Rounds" spanning group
+  o += '<thead>';
+  o += '<tr>';
+  o += '<th rowspan="2">Rank</th>';
+  o += '<th rowspan="2" class="L">Player</th>';
+  o += '<th rowspan="2">DUPR</th>';
+  o += '<th rowspan="2">P</th>';
+  o += '<th rowspan="2">W</th>';
+  o += '<th rowspan="2">L</th>';
+  if (roundCols.length) {
+    o += '<th colspan="'+roundCols.length+'" style="text-align:center;border-bottom:1px solid var(--b)">Round Pts</th>';
+  }
+  o += '<th rowspan="2">Total</th>';
+  o += '<th rowspan="2" style="width:28px"></th>';
+  o += '</tr>';
+
+  // Header row 2: individual round numbers
+  o += '<tr>';
+  roundCols.forEach(function(r) {
+    o += '<th style="font-size:11px;color:var(--tx3);min-width:32px">R'+r+'</th>';
+  });
+  o += '</tr>';
+  o += '</thead><tbody>';
+
+  rows.forEach(function(r2, i) {
+    var pos  = i+1;
+    var rowId = 'ldr-'+pos;
+    var m    = pos===1?'<span class="medal m1">1</span>':pos===2?'<span class="medal m2">2</span>':pos===3?'<span class="medal m3">3</span>':'';
+    var col  = r2.pts>0?'var(--green)':r2.pts<0?'var(--red)':'var(--tx2)';
+    var b    = getDuprBand(r2.dupr||'', cfg);
+
+    // Main row
     o += '<tr>';
     o += '<td class="dm mono">'+pos+'</td>';
-    o += '<td class="pn L">'+m+r.name+'</td>';
-    o += '<td><span class="dupr-badge '+b.css+'">'+(r.dupr||'NR')+'</span></td>';
-    o += '<td class="mono mu">'+r.played+'</td>';
-    o += '<td class="mono" style="color:var(--green)">'+r.wins+'</td>';
-    o += '<td class="mono" style="color:var(--red)">'+r.losses+'</td>';
-    o += '<td class="mono" style="color:'+col+';font-weight:700">'+(r.pts>0?'+':'')+r.pts+'</td>';
+    o += '<td class="pn L">'+m+r2.name+'</td>';
+    o += '<td><span class="dupr-badge '+b.css+'">'+(r2.dupr||'NR')+'</span></td>';
+    o += '<td class="mono mu">'+r2.played+'</td>';
+    o += '<td class="mono" style="color:var(--green)">'+r2.wins+'</td>';
+    o += '<td class="mono" style="color:var(--red)">'+r2.losses+'</td>';
+
+    // Per-round pts columns
+    roundCols.forEach(function(rn) {
+      var rpts = r2.byRound[rn];
+      if (rpts === undefined) {
+        o += '<td style="color:var(--tx3);font-size:11px">—</td>';
+      } else {
+        var rc = rpts>0?'var(--green)':rpts<0?'var(--red)':'var(--tx2)';
+        o += '<td class="mono" style="color:'+rc+';font-size:12px">'+(rpts>0?'+':'')+rpts+'</td>';
+      }
+    });
+
+    o += '<td class="mono" style="color:'+col+';font-weight:700">'+(r2.pts>0?'+':'')+r2.pts+'</td>';
+
+    // Expand toggle button
+    var hasHistory = r2.history && r2.history.length > 0;
+    if (hasHistory) {
+      o += '<td style="text-align:center"><button onclick="toggleHistory(\''+rowId+'\')" style="background:none;border:1.5px solid var(--b2);color:var(--tx2);border-radius:5px;padding:1px 7px;cursor:pointer;font-size:13px" id="btn-'+rowId+'">&#9660;</button></td>';
+    } else {
+      o += '<td></td>';
+    }
     o += '</tr>';
 
-    // Per-round breakdown rows
-    if (r.history && r.history.length) {
-      r.history.sort(function(a,b){return a.r-b.r || a.c-b.c;});
-      r.history.forEach(function(h) {
-        var dc=h.diff>=0?'var(--green)':'var(--red)';
-        var winLose=h.win?'W':'L';
-        var wlCol=h.win?'var(--green)':'var(--red)';
-        o += '<tr style="background:var(--sf2)">';
-        o += '<td></td>';
-        o += '<td colspan="2" style="padding-left:24px;font-size:11px;color:var(--tx3)">&#8627; C'+h.c+' R'+h.r+' &nbsp;w/ '+h.partner+'</td>';
-        o += '<td colspan="2" style="font-size:11px;color:var(--tx2)">vs '+h.vs+'</td>';
-        o += '<td style="font-size:11px;color:var(--tx2)">'+h.score+'</td>';
-        o += '<td style="font-size:12px;color:'+dc+';font-weight:700">'+(h.diff>=0?'+':'')+h.diff+'</td>';
+    // History rows (hidden by default)
+    if (hasHistory) {
+      o += '<tr id="'+rowId+'" style="display:none"><td colspan="'+(6+roundCols.length+2)+'" style="padding:0">';
+      o += '<table style="width:100%;font-size:12px;background:var(--sf2);border-top:1px solid var(--b)">';
+      o += '<thead><tr style="background:var(--sf)">';
+      o += '<th style="padding:5px 10px;text-align:left;font-weight:600;color:var(--tx3)">Court</th>';
+      o += '<th style="padding:5px 10px;text-align:left;font-weight:600;color:var(--tx3)">Round</th>';
+      o += '<th style="padding:5px 10px;text-align:left;font-weight:600;color:var(--tx3)">Partner</th>';
+      o += '<th style="padding:5px 10px;text-align:left;font-weight:600;color:var(--tx3)">Opponents</th>';
+      o += '<th style="padding:5px 10px;text-align:center;font-weight:600;color:var(--tx3)">Score</th>';
+      o += '<th style="padding:5px 10px;text-align:center;font-weight:600;color:var(--tx3)">Pts</th>';
+      o += '<th style="padding:5px 10px;text-align:center;font-weight:600;color:var(--tx3)">W/L</th>';
+      o += '</tr></thead><tbody>';
+      r2.history.sort(function(a,b){return a.r-b.r||a.c-b.c;});
+      r2.history.forEach(function(h) {
+        var dc  = h.diff>=0?'var(--green)':'var(--red)';
+        var wl  = h.win?'<span style="color:var(--green);font-weight:700">W</span>':'<span style="color:var(--red);font-weight:700">L</span>';
+        o += '<tr style="border-top:1px solid var(--b)">';
+        o += '<td style="padding:5px 12px;color:var(--tx2)">Court '+h.c+'</td>';
+        o += '<td style="padding:5px 8px;color:var(--tx2)">R'+h.r+'</td>';
+        o += '<td style="padding:5px 8px;font-weight:500">'+h.partner+'</td>';
+        o += '<td style="padding:5px 8px;color:var(--tx2)">'+h.vs+'</td>';
+        o += '<td style="padding:5px 8px;text-align:center;font-family:\'DM Mono\',monospace">'+h.score+'</td>';
+        o += '<td style="padding:5px 8px;text-align:center;font-weight:700;color:'+dc+'">'+(h.diff>=0?'+':'')+h.diff+'</td>';
+        o += '<td style="padding:5px 8px;text-align:center">'+wl+'</td>';
         o += '</tr>';
       });
+      o += '</tbody></table></td></tr>';
     }
   });
 
@@ -2031,104 +2169,12 @@ function ladderRankings() {
   return o;
 }
 
-
-// ═══════════════════════════════════════════════════════════════════════════
-// CONFIG HELPERS
-// ═══════════════════════════════════════════════════════════════════════════
-function getConfig() {
-  return {
-    assignType : document.getElementById('assignType')?.value || 'roundrobin',
-    gameType   : document.getElementById('gameType')?.value   || 'points',
-    showDupr   : document.getElementById('showDupr')?.checked || false,
-    maxPts     : parseInt(document.getElementById('maxPts')?.value || '15'),
-    band1      : parseFloat(document.getElementById('band1')?.value || '2.499'),
-    band2      : parseFloat(document.getElementById('band2')?.value || '2.999'),
-    band3      : parseFloat(document.getElementById('band3')?.value || '3.499'),
-  };
+function toggleHistory(rowId) {
+  var row = document.getElementById(rowId);
+  var btn = document.getElementById('btn-'+rowId);
+  if (!row) return;
+  var visible = row.style.display !== 'none';
+  row.style.display = visible ? 'none' : 'table-row';
+  if (btn) btn.innerHTML = visible ? '&#9660;' : '&#9650;';
 }
 
-function getDuprBand(ratingStr, cfg) {
-  if (!ratingStr || String(ratingStr).toUpperCase() === 'NR') return {band:0, label:'NR', css:'dupr-nr'};
-  const v = parseFloat(ratingStr);
-  if (isNaN(v) || v < 2.0) return {band:0, label:'NR', css:'dupr-nr'};
-  if (v <= cfg.band1) return {band:1, label:'2.0–'+cfg.band1, css:'dupr-2'};
-  if (v <= cfg.band2) return {band:2, label:(cfg.band1+0.001).toFixed(3)+'–'+cfg.band2, css:'dupr-25'};
-  if (v <= cfg.band3) return {band:3, label:(cfg.band2+0.001).toFixed(3)+'–'+cfg.band3, css:'dupr-3'};
-  return {band:4, label:(cfg.band3+0.001).toFixed(3)+'+', css:'dupr-35'};
-}
-
-// getDuprValue defined in ladder block above
-
-
-
-
-
-function getPlayerData() {
-  return [...document.querySelectorAll('.pentry')].map((row, i) => {
-    const name = row.querySelector('.pinp')?.value.trim() || '';
-    if (!name) return null;
-    const dupr      = row.querySelector('.dupr-inp')?.value.trim() || '';
-    const checkedIn = row.querySelector('.checkin-chk')?.checked || false;
-    return {name, dupr, checkedIn, globalIdx: i};
-  }).filter(Boolean);
-}
-
-function onConfigChange() {
-  const cfg = getConfig();
-  const isDupr   = cfg.gameType === 'dupr' || cfg.gameType === 'duprladder';
-  const isLadder = cfg.gameType === 'duprladder';
-  const isPoints = cfg.gameType === 'points';
-  const isRR     = cfg.assignType === 'roundrobin';
-
-  if (isDupr) document.getElementById('showDupr').checked = true;
-  const showDuprFields = isDupr || cfg.showDupr;
-  document.querySelectorAll('.dupr-inp').forEach(el => { el.style.display = showDuprFields ? 'inline-block' : 'none'; });
-  document.querySelectorAll('.checkin-lbl').forEach(el => { el.style.display = isLadder ? 'flex' : 'none'; });
-
-  const bp = document.getElementById('duprBandsPanel');
-  if (bp) bp.style.display = isDupr ? 'block' : 'none';
-  const mp = document.getElementById('maxPtsBox');
-  if (mp) mp.style.display = isLadder ? 'flex' : 'none';
-
-  if (isLadder && numCourtsConfig < 3) {
-    numCourtsConfig = 3;
-    document.getElementById('courtCount').textContent = 3;
-  }
-
-  const s1 = document.querySelector('.ntab[data-pg="pgS1"]');
-  const s2 = document.querySelector('.ntab[data-pg="pgS2"]');
-  const s3 = document.querySelector('.ntab[data-pg="pgS3"]');
-  const td = document.getElementById('ntabDupr');
-  const tl = document.getElementById('ntabLadder');
-
-  if (isPoints && isRR) {
-    [s1,s2,s3].forEach(t=>t&&t.classList.remove('tab-hidden'));
-    td && td.classList.add('tab-hidden');
-    tl && tl.classList.add('tab-hidden');
-  } else if (cfg.gameType==='dupr' && isRR) {
-    [s1,s2,s3].forEach(t=>t&&t.classList.add('tab-hidden'));
-    td && td.classList.remove('tab-hidden');
-    tl && tl.classList.add('tab-hidden');
-  } else if (isLadder && isRR) {
-    [s1,s2,s3].forEach(t=>t&&t.classList.add('tab-hidden'));
-    td && td.classList.add('tab-hidden');
-    tl && tl.classList.remove('tab-hidden');
-  }
-}
-// NAV
-// ═══════════════════════════════════════════════════════════════════════════
-function showPg(id){
-  document.querySelectorAll('.pg').forEach(p=>p.classList.remove('on'));
-  document.querySelectorAll('.ntab').forEach(t=>t.classList.remove('on'));
-  document.getElementById(id).classList.add('on');
-  const pgMap = {pgA:0,pgS1:1,pgS2:2,pgS3:3,pgR:6,pgLD:7,pgDupr:4,pgLadder:5};
-  if (pgMap[id] !== undefined) document.querySelectorAll('.ntab')[pgMap[id]].classList.add('on');
-  if(id==='pgLD') renderLuckyDraw();
-  if(id==='pgR') computeRankings();
-}
-</script>
-<div style="text-align:center;padding:18px 20px;font-size:11px;color:var(--tx3);border-top:1px solid var(--b);margin-top:40px;background:var(--sf)">
-  © 2026 Tommy Tay · All rights reserved · Tournament Manager
-</div>
-</body>
-</html>
