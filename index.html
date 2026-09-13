@@ -1649,7 +1649,10 @@ function renderLadder() {
     var tA        = active.slice(0, 2);
     var tB        = active.slice(2, 4);
     var sitting   = active.slice(4);
-    var key       = 'r' + ladderState.round + 'c' + ci;
+    if (!ladderState.courtRound) ladderState.courtRound = {};
+    if (!ladderState.courtRound[ci]) ladderState.courtRound[ci] = 1;
+    var cr      = ladderState.courtRound[ci];
+    var key     = 'c' + ci + 'r' + cr;
     var sc        = ladderState.scores[key] || {sA:'', sB:''};
     var sA = sc.sA, sB = sc.sB;
     var hc        = (ci % 2 === 0) ? 'c1' : 'c2';
@@ -1707,7 +1710,7 @@ function renderLadder() {
       var bB1 = getDuprBand(pB1.dupr, cfg);
 
       o += '<div style="background:var(--c1bg);border:2px solid var(--c1bdr);border-radius:var(--rr);padding:14px">';
-      o += '<div style="font-size:11px;font-weight:700;color:var(--c1);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">&#127992; Round '+ladderState.round+' Match</div>';
+      o += '<div style="font-size:11px;font-weight:700;color:var(--c1);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">&#127992; '+ct.label+' &middot; Round '+cr+' Match</div>';
 
       // Team A
       o += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">';
@@ -1804,7 +1807,7 @@ function saveScore(inp) {
   var vA2=parseFloat(sc.sA||sc.a||''), vB2=parseFloat(sc.sB||sc.b||'');
   if (!isNaN(vA2) && !isNaN(vB2) && (sc.sA!==''||sc.a!=='') && (sc.sB!==''||sc.b!=='')) {
     var dA=vA2-vB2, dB=vB2-vA2;
-    var ci2 = parseInt(key.split('c')[1]);
+    var ci2 = parseInt(key.split('r')[0].replace('c',''));
     var act = getActivePlayers(ci2);
     var nA  = act.length>=2 ? act[0]+' & '+act[1] : 'Team A';
     var nB  = act.length>=4 ? act[2]+' & '+act[3] : 'Team B';
@@ -1815,76 +1818,93 @@ function saveScore(inp) {
 }
 
 function nextRound(ci) {
-  var ct  = ladderState.courts[ci];
-  var key = 'r' + ladderState.round + 'c' + ci;
+  var ct    = ladderState.courts[ci];
+  // Each court has its own independent round counter
+  if (!ladderState.courtRound) ladderState.courtRound = {};
+  if (!ladderState.courtRound[ci]) ladderState.courtRound[ci] = 1;
+  var cr  = ladderState.courtRound[ci];
+  var key = 'c' + ci + 'r' + cr;
   var sc  = ladderState.scores[key];
 
-  if (!sc || sc.sA==='' || sc.sB==='') {
-    alert('Enter scores for ' + ct.label + ' before clicking Next Round.');
+  if (!sc || sc.sA === '' || sc.sB === '') {
+    alert('Enter scores for ' + ct.label + ' (Round ' + cr + ') before clicking Next Round.');
     return;
   }
 
-  var active  = getActivePlayers(ci);
-  var tA      = active.slice(0,2);
-  var tB      = active.slice(2,4);
-  var vA      = parseFloat(sc.sA);
-  var vB      = parseFloat(sc.sB);
+  var active = getActivePlayers(ci);
+  var tA     = active.slice(0, 2);
+  var tB     = active.slice(2, 4);
+  var vA     = parseFloat(sc.sA);
+  var vB     = parseFloat(sc.sB);
 
   if (tA.length < 2 || tB.length < 2) {
-    alert('Not enough active players to determine teams.');
+    alert('Not enough active players on ' + ct.label + '.');
     return;
   }
 
-  // Save round history
-  if (!ladderState.scores[key].tA) {
-    ladderState.scores[key].tA = tA.slice();
-    ladderState.scores[key].tB = tB.slice();
-  }
+  // Save team history onto the score record
+  ladderState.scores[key].tA = tA.slice();
+  ladderState.scores[key].tB = tB.slice();
+  ladderState.scores[key].court = ct.label;
 
-  // Court 1 = lowest/weakest, Court N = highest/strongest
-  // Winners → move UP to harder court (higher index)
-  // Losers  → move DOWN to easier court (lower index)
+  // Court 1 = weakest, Court N = strongest
+  // Winners → move UP (higher index = harder court)
+  // Losers  → move DOWN (lower index = easier court)
   var winners = (vA >= vB) ? tA.slice() : tB.slice();
   var losers  = (vA >= vB) ? tB.slice() : tA.slice();
-  var upIdx   = Math.min(ladderState.courts.length - 1, ci + 1); // stronger court
-  var dnIdx   = Math.max(0, ci - 1);                              // weaker court
+  var upIdx   = Math.min(ladderState.courts.length - 1, ci + 1);
+  var dnIdx   = Math.max(0, ci - 1);
 
-  // Move winners UP
+  // Remove the 4 active players from this court first
+  // Sitters (players 5-7) stay on this court
+  active.slice(0, 4).forEach(function(name) {
+    ct.playerNames = ct.playerNames.filter(function(n) { return n !== name; });
+  });
+
+  // Winners move UP to harder court
   if (upIdx !== ci) {
     winners.forEach(function(name) {
-      // Remove from current court
-      ct.playerNames = ct.playerNames.filter(function(n){ return n !== name; });
-      // Add to upper court
       if (ladderState.courts[upIdx].playerNames.indexOf(name) === -1) {
         ladderState.courts[upIdx].playerNames.push(name);
       }
       ladderState.registry[name].courtIdx = upIdx;
     });
+  } else {
+    // Already at top — winners stay on this court
+    winners.forEach(function(name) {
+      if (ct.playerNames.indexOf(name) === -1) ct.playerNames.push(name);
+    });
   }
 
-  // Move losers DOWN
+  // Losers move DOWN to easier court
   if (dnIdx !== ci) {
     losers.forEach(function(name) {
-      ct.playerNames = ct.playerNames.filter(function(n){ return n !== name; });
       if (ladderState.courts[dnIdx].playerNames.indexOf(name) === -1) {
         ladderState.courts[dnIdx].playerNames.push(name);
       }
       ladderState.registry[name].courtIdx = dnIdx;
     });
+  } else {
+    // Already at bottom — losers stay on this court
+    losers.forEach(function(name) {
+      if (ct.playerNames.indexOf(name) === -1) ct.playerNames.push(name);
+    });
   }
 
-  // Cap each court at 7
-  ladderState.courts.forEach(function(c2) {
-    if (c2.playerNames.length > 7) c2.playerNames = c2.playerNames.slice(0, 7);
+  // Cap each affected court at 7
+  [ci, upIdx, dnIdx].forEach(function(idx) {
+    var c2 = ladderState.courts[idx];
+    if (c2 && c2.playerNames.length > 7) c2.playerNames = c2.playerNames.slice(0, 7);
   });
 
-  // Check round increment (all courts done this round)
-  var allDone = ladderState.courts.every(function(c2, i2) {
-    var k = 'r' + ladderState.round + 'c' + i2;
-    var s = ladderState.scores[k];
-    return s && s.sA !== '' && s.sB !== '';
+  // Advance THIS court's round counter independently
+  ladderState.courtRound[ci] = cr + 1;
+
+  // Update global display round = max of all court rounds
+  ladderState.round = 1;
+  Object.keys(ladderState.courtRound).forEach(function(k) {
+    if (ladderState.courtRound[k] > ladderState.round) ladderState.round = ladderState.courtRound[k];
   });
-  if (allDone) ladderState.round++;
 
   renderLadder();
 }
@@ -1902,9 +1922,9 @@ function ladderRankings() {
   var cfg    = getConfig();
   var totals = {};
 
-  Object.keys(ladderState.scores).forEach(function(key) {
+  Object.keys(ladderState.scores || {}).forEach(function(key) {
     var sc = ladderState.scores[key];
-    if (!sc || sc.sA==='' || sc.sB==='' || !sc.tA || !sc.tB) return;
+    if (!sc || !sc.tA || !sc.tB || sc.sA==='' || sc.sB==='') return;
     var vA=parseFloat(sc.sA), vB=parseFloat(sc.sB);
     var dA=vA-vB, dB=vB-vA;
     sc.tA.forEach(function(name) {
