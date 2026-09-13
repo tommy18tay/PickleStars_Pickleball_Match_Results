@@ -121,6 +121,19 @@ nav{background:var(--sf);border-bottom:1px solid var(--b);padding:0 24px;display
 .alert{padding:10px 15px;border-radius:var(--r);font-size:13px;margin-bottom:14px}
 .alert-ok{background:var(--greenbg);border:1.5px solid var(--greenbdr);color:var(--green)}
 .alert-w{background:var(--goldbg);border:1.5px solid var(--goldbdr);color:var(--gold)}
+.cfg-select{background:var(--sf2);border:1.5px solid var(--b2);color:var(--tx);padding:7px 11px;border-radius:var(--r);font-family:'DM Sans',sans-serif;font-size:14px;outline:none;cursor:pointer;min-width:180px}
+.cfg-select:focus{border-color:var(--ac)}
+.cfg-label{font-size:11px;color:var(--tx3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;font-weight:600}
+.cfg-box{display:flex;flex-direction:column;gap:6px}
+.dupr-badge{display:inline-block;font-family:'DM Mono',monospace;font-size:11px;padding:2px 7px;border-radius:4px;font-weight:600}
+.dupr-nr{background:#fff3e8;color:#8a5a3a;border:1px solid #d8b89a}
+.dupr-2{background:#e8f5e8;color:#2a6a3a;border:1px solid #a8d8a8}
+.dupr-25{background:#e8f0f8;color:#1a5a8a;border:1px solid #a8c8e8}
+.dupr-3{background:#f5e8f5;color:#6a1a8a;border:1px solid #d8a8e8}
+.dupr-35{background:#fff8e0;color:#8a6010;border:1px solid #e8d080}
+.chk-row{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;font-weight:500;color:var(--tx)}
+.chk-row input[type=checkbox]{width:16px;height:16px;cursor:pointer;accent-color:var(--c1)}
+.tab-hidden{display:none!important}
 .empty{text-align:center;padding:48px 20px;color:var(--tx3)}
 .empty-i{font-size:32px;opacity:.4;margin-bottom:10px}
 .empty-t{font-size:15px;color:var(--tx2);margin-bottom:4px}
@@ -138,9 +151,11 @@ nav{background:var(--sf);border-bottom:1px solid var(--b);padding:0 24px;display
     <span>Unique PickleBall 🌟 System Points Format</span>
   </div>
   <button class="ntab on" onclick="showPg('pgA')">Registration &amp; Lucky Draw</button>
-  <button class="ntab" onclick="showPg('pgS1')">Set 1 · Courts</button>
-  <button class="ntab" onclick="showPg('pgS2')">Set 2 · Courts</button>
-  <button class="ntab" onclick="showPg('pgS3')">Set 3 · Courts</button>
+  <button class="ntab" data-pg="pgS1" onclick="showPg('pgS1')">Set 1 · Courts</button>
+  <button class="ntab" data-pg="pgS2" onclick="showPg('pgS2')">Set 2 · Courts</button>
+  <button class="ntab" data-pg="pgS3" onclick="showPg('pgS3')">Set 3 · Courts</button>
+  <button class="ntab tab-hidden" id="ntabDupr" onclick="showPg('pgDupr')">DUPR Game</button>
+  <button class="ntab tab-hidden" id="ntabLadder" onclick="showPg('pgLadder')">🪜 Ladder</button>
   <button class="ntab" onclick="showPg('pgR')">Rankings</button>
   <button class="ntab" onclick="showPg('pgLD')">🎁 Lucky Draw</button>
   <div style="margin-left:auto;font-size:11px;color:var(--tx3);padding:0 16px;white-space:nowrap">© Tommy Tay</div>
@@ -196,6 +211,60 @@ nav{background:var(--sf);border-bottom:1px solid var(--b);padding:0 24px;display
         Enter players to see court split preview
       </div>
     </div>
+
+    <div style="display:flex;align-items:flex-start;gap:24px;flex-wrap:wrap;margin-top:16px;padding-top:16px;border-top:1px solid var(--b)">
+
+      <div class="cfg-box">
+        <div class="cfg-label">Player Assignment Type</div>
+        <select id="assignType" class="cfg-select" onchange="onConfigChange()">
+          <option value="roundrobin">Round Robin</option>
+          <option value="fixed">Fixed Partner</option>
+          <option value="single">Single</option>
+        </select>
+      </div>
+
+      <div class="cfg-box">
+        <div class="cfg-label">Game Type</div>
+        <select id="gameType" class="cfg-select" onchange="onConfigChange()">
+          <option value="points">Point System Game</option>
+          <option value="dupr">DUPR Game</option>
+          <option value="duprladder">DUPR Ladder Game</option>
+        </select>
+      </div>
+
+      <div class="cfg-box" id="maxPtsBox" style="display:none">
+        <div class="cfg-label">Max Points Per Game</div>
+        <input type="number" id="maxPts" value="15" min="1" max="99"
+          style="background:var(--sf2);border:1.5px solid var(--b2);color:var(--tx);padding:7px 11px;border-radius:var(--r);font-family:'DM Mono',monospace;font-size:16px;width:90px;outline:none;font-weight:600">
+      </div>
+
+      <div class="cfg-box">
+        <div class="cfg-label">Player DUPR Rating</div>
+        <label class="chk-row">
+          <input type="checkbox" id="showDupr" onchange="onConfigChange()">
+          Show DUPR Rating field
+        </label>
+      </div>
+
+    </div>
+
+    <div id="duprBandsPanel" style="display:none;margin-top:14px;padding:12px 16px;background:var(--sf2);border:1.5px solid var(--b);border-radius:var(--r)">
+      <div style="font-size:12px;font-weight:600;color:var(--tx);margin-bottom:10px">⚙ DUPR Rating Bands <span style="font-size:11px;color:var(--tx3);font-weight:400">(edit thresholds as needed)</span></div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;font-size:13px;color:var(--tx2)">
+        <span>NR / &lt; 2.0 →</span>
+        <input type="number" id="band1" value="2.499" step="0.001" min="2" max="4"
+          style="width:72px;background:var(--sf);border:1.5px solid var(--b2);color:var(--tx);padding:4px 7px;border-radius:5px;font-family:'DM Mono',monospace;font-size:13px;text-align:center;outline:none">
+        <span>→</span>
+        <input type="number" id="band2" value="2.999" step="0.001" min="2" max="4"
+          style="width:72px;background:var(--sf);border:1.5px solid var(--b2);color:var(--tx);padding:4px 7px;border-radius:5px;font-family:'DM Mono',monospace;font-size:13px;text-align:center;outline:none">
+        <span>→</span>
+        <input type="number" id="band3" value="3.499" step="0.001" min="2" max="5"
+          style="width:72px;background:var(--sf);border:1.5px solid var(--b2);color:var(--tx);padding:4px 7px;border-radius:5px;font-family:'DM Mono',monospace;font-size:13px;text-align:center;outline:none">
+        <span>→ 3.5+</span>
+        <span style="font-size:11px;color:var(--tx3);margin-left:8px">Bands: NR–2.0 | 2.0–band1 | band1+1–band2 | band2+1–band3 | band3+1+</span>
+      </div>
+    </div>
+
   </div>
 
   <div class="abar">
@@ -209,7 +278,22 @@ nav{background:var(--sf);border-bottom:1px solid var(--b);padding:0 24px;display
 
   <div style="margin-top:28px;border-top:1.5px solid var(--b);padding-top:22px">
     <div style="font-size:16px;font-weight:700;color:var(--tx);margin-bottom:4px;font-family:'Fraunces',serif">🎁 Lucky Draw Prize Setup</div>
-    <div style="font-size:13px;color:var(--tx2);margin-bottom:16px">Add prizes for the lucky draw. One prize is assigned per player drawn. Players without a matching prize get the default message.</div>
+    <div style="font-size:13px;color:var(--tx2);margin-bottom:16px">Configure the number of winners and prize list. Each winner receives one randomly selected prize.</div>
+
+    <div style="display:flex;align-items:flex-start;gap:28px;flex-wrap:wrap;margin-bottom:16px;padding:14px 16px;background:var(--sf2);border:1.5px solid var(--b);border-radius:var(--r)">
+      <div>
+        <div style="font-size:11px;color:var(--tx3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;font-weight:600">Number of Lucky Draw Winners</div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <button class="btn btn-s" onclick="changeWinners(-1)" style="font-size:16px;font-weight:700;padding:4px 12px;line-height:1">−</button>
+          <span id="winnerCount" style="font-family:'DM Mono',monospace;font-size:22px;font-weight:600;color:var(--gold);min-width:32px;text-align:center">2</span>
+          <button class="btn btn-s" onclick="changeWinners(1)" style="font-size:16px;font-weight:700;padding:4px 12px;line-height:1">+</button>
+        </div>
+      </div>
+      <div style="padding-top:6px">
+        <div style="font-size:11px;color:var(--tx3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;font-weight:600">Prize Pool</div>
+        <div id="winnerPreview" style="font-size:13px;color:var(--tx2)">2 winners · prizes drawn randomly from pool</div>
+      </div>
+    </div>
 
     <div class="abar" style="margin-bottom:12px">
       <button class="btn btn-s btn-p" onclick="addPrize()">+ Add Prize</button>
@@ -252,6 +336,20 @@ nav{background:var(--sf);border-bottom:1px solid var(--b);padding:0 24px;display
   <div class="stitle">Set 3 · Round Robin</div>
   <div class="ssub" id="s3Sub">Complete Set 2 scoring first, then generate Set 3.</div>
   <div id="s3Wrap"><div class="empty"><div class="empty-i">🔄</div><div class="empty-t">Set 2 must be completed first</div><div>Save Set 2 scores, then click "Generate Set 3".</div></div></div>
+</div>
+
+<!-- DUPR Game -->
+<div id="pgDupr" class="pg">
+  <div class="stitle">DUPR Game</div>
+  <div class="ssub">Players grouped by DUPR rating bands. Same round robin scoring as Point System Game.</div>
+  <div id="duprWrap"><div class="empty"><div class="empty-i">🏸</div><div class="empty-t">Generate DUPR Game from Section A</div></div></div>
+</div>
+
+<!-- DUPR Ladder Game -->
+<div id="pgLadder" class="pg">
+  <div class="stitle">🪜 DUPR Ladder Game</div>
+  <div class="ssub">Winners move up a court, losers move down. Scoring: point difference per game.</div>
+  <div id="ladderWrap"><div class="empty"><div class="empty-i">🪜</div><div class="empty-t">Generate Ladder Game from Section A</div></div></div>
 </div>
 
 <!-- Rankings -->
@@ -365,6 +463,7 @@ let numCourtsConfig = 2; // organizer-set court count
 let set1Courts = [];   // courts for set 1
 let set2Courts = [];   // courts for set 2
 let set3Courts = [];   // courts for set 3
+let numWinnersConfig = 2; // organizer-set lucky draw winner count
 
 // ═══════════════════════════════════════════════════════════════════════════
 // SCORING HELPERS
@@ -399,15 +498,24 @@ function getCourtPlayerTotals(court) {
   for(let i=0;i<56;i++){
     const d=document.createElement('div');
     d.className='pentry';
+    d.style.cssText='flex-wrap:wrap;gap:6px';
     d.innerHTML=`<span class="pnum">${String(i+1).padStart(2,'0')}</span>
-      <input class="pinp" placeholder="Player ${i+1}" maxlength="26">`;
+      <input class="pinp" placeholder="Player ${i+1}" maxlength="26" style="flex:1;min-width:100px">
+      <input class="dupr-inp" type="text" placeholder="DUPR" maxlength="6"
+        style="display:none;width:62px;background:var(--sf2);border:1.5px solid var(--b2);color:var(--tx);padding:4px 6px;border-radius:5px;font-family:'DM Mono',monospace;font-size:12px;text-align:center;outline:none"
+        title="DUPR Rating (e.g. 2.856 or NR)">
+      <label class="checkin-lbl" style="display:none;align-items:center;gap:4px;font-size:11px;color:var(--tx3);cursor:pointer;white-space:nowrap">
+        <input type="checkbox" class="checkin-chk" style="width:14px;height:14px;accent-color:var(--green);cursor:pointer"> In
+      </label>`;
     g.appendChild(d);
   }
-  g.querySelectorAll('input').forEach(el=>el.addEventListener('input',updateCount));
+  g.querySelectorAll('.pinp').forEach(el=>el.addEventListener('input',updateCount));
 })();
 // Initialise prize list display and set default date to today
 setTimeout(()=>{
   renderPrizeList();
+  updateWinnerPreview();
+  onConfigChange(); // apply initial config state
   const d = new Date();
   const pad = n => String(n).padStart(2,'0');
   document.getElementById('matchDate').value = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
@@ -424,6 +532,22 @@ function changeCourts(delta){
   document.getElementById('courtCount').textContent = numCourtsConfig;
   const n=[...document.querySelectorAll('.pinp')].filter(i=>i.value.trim()).length;
   updateCourtPreview(n);
+}
+
+function changeWinners(delta){
+  numWinnersConfig = Math.max(1, Math.min(prizes.length || 7, numWinnersConfig + delta));
+  document.getElementById('winnerCount').textContent = numWinnersConfig;
+  updateWinnerPreview();
+}
+
+function updateWinnerPreview(){
+  const el = document.getElementById('winnerPreview');
+  if (!el) return;
+  const poolSize = prizes.length;
+  const warn = numWinnersConfig > poolSize
+    ? ` <span style="color:var(--orange);font-size:11px">(⚠ more winners than prizes — some prizes may repeat)</span>`
+    : '';
+  el.innerHTML = `<strong style="color:var(--tx)">${numWinnersConfig}</strong> winner${numWinnersConfig!==1?'s':''} · ${poolSize} prize${poolSize!==1?'s':''} in pool${warn}`;
 }
 
 function updateCourtPreview(n){
@@ -449,8 +573,17 @@ const NAMES=['Alex','Alan','Parker','Aaron','Felicia','Kumbo','Jericio','Peter',
   'Rachel','Ben','Clara','David','Emma','Frank','Grace','Henry',
   'Ivan','Julia','Kevin','Linda','Marco','Nina','Oscar','Priya'];
 
+const SAMPLE_DUPR = ['NR','2.5','2.3','2.2','2.4','2.1','2.3','2.33','2.7','2.8','2.65','2.13','2.56','NR','2.98','2.79','2.45','2.63','3.15','3.3','3.45'];
+
 function loadSample(n){
-  document.querySelectorAll('.pinp').forEach((inp,i)=>{inp.value=i<n?NAMES[i]:'';});
+  document.querySelectorAll('.pentry').forEach((row,i)=>{
+    const pinp = row.querySelector('.pinp');
+    const dinp = row.querySelector('.dupr-inp');
+    const cinp = row.querySelector('.checkin-chk');
+    if (pinp) pinp.value = i < n ? NAMES[i] : '';
+    if (dinp) dinp.value = i < n ? (SAMPLE_DUPR[i] || '') : '';
+    if (cinp) cinp.checked = i < n; // all checked in by default for sample
+  });
   updateCount();
 }
 
@@ -485,8 +618,17 @@ function generateSet1(){
   }
 
   set2Courts=[];
-  renderSet(1);
-  showPg('pgS1');
+  set3Courts=[];
+
+  const cfg = getConfig();
+  if (cfg.gameType === 'dupr' && cfg.assignType === 'roundrobin') {
+    generateDuprGame();
+  } else if (cfg.gameType === 'duprladder' && cfg.assignType === 'roundrobin') {
+    generateLadderGame();
+  } else {
+    renderSet(1);
+    showPg('pgS1');
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -971,10 +1113,12 @@ let prizes = [
 ];
 // Draw state: {playerIdx → prizeIdx|-1 (no prize)} — populated on draw
 let drawResults = {};   // playerIdx (global) → prize object | null
+
 let drawDone    = false;
 let drawOrder   = [];   // randomised player order for reveal animation
 
 function renderPrizeList(){
+  updateWinnerPreview();
   const el=document.getElementById('prizeList');
   if(!el) return;
   if(!prizes.length){
@@ -1031,7 +1175,7 @@ function renderLuckyDraw(){
   }
 
   // Count total prize slots
-  subEl.textContent=`${n} players · ${prizes.length} prize${prizes.length!==1?'s':''} in pool · 2 lucky winners will be drawn`;
+  subEl.textContent=`${n} players · ${prizes.length} prize${prizes.length!==1?'s':''} in pool · ${numWinnersConfig} lucky winner${numWinnersConfig!==1?'s':''} will be drawn`;
 
   // Prize summary cards
   const prizeCards=prizes.length
@@ -1061,7 +1205,7 @@ function renderLuckyDraw(){
         <div style="display:flex;flex-direction:column;justify-content:center;align-items:center;gap:12px;background:var(--sf);border:1.5px solid var(--b);border-radius:var(--rr);padding:24px 28px;box-shadow:var(--shadow-sm);min-width:200px">
           <div style="font-size:36px">🎰</div>
           <div style="font-size:15px;font-weight:600;color:var(--tx);text-align:center">${n} players ready</div>
-          <div style="font-size:12px;color:var(--tx2);text-align:center">2 winners drawn from<br>${n} players</div>
+          <div style="font-size:12px;color:var(--tx2);text-align:center">${numWinnersConfig} winner${numWinnersConfig!==1?'s':''} drawn from<br>${n} players</div>
           <button class="btn btn-p" style="font-size:15px;padding:10px 24px;margin-top:4px" onclick="runDraw()">🎲 Start Lucky Draw!</button>
         </div>
       </div>
@@ -1119,7 +1263,7 @@ function runDraw(){
     const j=Math.floor(Math.random()*(i+1));
     [prizePool[i],prizePool[j]]=[prizePool[j],prizePool[i]];
   }
-  const selectedPrizes=prizePool.slice(0,2); // exactly 2 winners
+  const selectedPrizes=prizePool.slice(0, numWinnersConfig); // use configured winner count
 
   // Shuffle player indices to pick 2 random winners
   const shuffled=pList.map((_,i)=>i);
@@ -1333,13 +1477,561 @@ async function syncMatchResults() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DUPR GAME — players grouped by rating band, same scoring as Point System
+// ═══════════════════════════════════════════════════════════════════════════
+function generateDuprGame() {
+  const cfg  = getConfig();
+  const pData = getPlayerData();
+  if (pData.length < 4) { alert('Need at least 4 players.'); return; }
+
+  // Sort by DUPR value ascending
+  pData.sort((a, b) => getDuprValue(a.dupr) - getDuprValue(b.dupr));
+
+  // Group into bands, then fill courts (max 7 per court)
+  const MAX_PER_COURT = 7;
+  const numCourts = Math.max(1, numCourtsConfig);
+  const courts = [];
+
+  // Distribute players evenly across courts sorted by DUPR
+  // (similar players on same court)
+  const perCourt = Math.ceil(pData.length / numCourts);
+  for (let c = 0; c < numCourts; c++) {
+    const group = pData.slice(c * perCourt, (c + 1) * perCourt).slice(0, MAX_PER_COURT);
+    if (group.length < 2) break;
+    const ids   = group.map(p => p.globalIdx);
+    const sched = buildSchedule(ids.length);
+    courts.push({
+      playerIds: ids,
+      schedule:  sched,
+      label:    `Court ${c + 1}`,
+      duprData:  group,
+    });
+  }
+
+  set1Courts = courts;
+  renderSet(1);
+
+  // Show DUPR band info on court headers
+  const duprEl = document.getElementById('duprWrap');
+  duprEl.innerHTML = '<div class="alert alert-ok">✓ DUPR Game generated — players grouped by rating. Scoring same as Point System Game.</div>' + duprEl.innerHTML;
+
+  showPg('pgDupr');
+
+  // Mirror to Set 1 tab as well
+  document.getElementById('s1Wrap').innerHTML = document.getElementById('rrWrap')?.innerHTML || document.getElementById('s1Wrap').innerHTML;
+  showPg('pgDupr');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DUPR LADDER GAME  v2
+// Court 1 = lowest DUPR (beginners), Court N = highest (advanced)
+// Winners move UP (higher court index = harder), Losers move DOWN
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ladderState.registry: all players keyed by name
+// ladderState.courts: [{idx, label, duprRange, playerNames[]}]
+// ladderState.round: current round number
+// ladderState.scores: {key: {sA, sB, tA:[], tB:[]}}
+// ladderState.playerStatus: {name: 'active'|'resting'|'waiting'}
+
+var ladderState = {
+  registry:     {},   // name → {name, dupr, globalIdx, courtIdx}
+  courts:       [],
+  round:        1,
+  scores:       {},
+  playerStatus: {},   // name → 'active' | 'resting' | 'waiting'
+};
+
+function getDuprValue(s) {
+  if (!s || String(s).toUpperCase() === 'NR') return 2.0;
+  var v = parseFloat(s);
+  return isNaN(v) ? 2.0 : v;
+}
+
+function generateLadderGame() {
+  var cfg   = getConfig();
+  var pData = getPlayerData();
+  if (!pData || pData.length < 4) { alert('Need at least 4 players.'); return; }
+
+  var numCourts = Math.max(3, numCourtsConfig);
+  var MAX       = 7;
+
+  // Sort ALL players by DUPR (attending + not-yet) together
+  // so DUPR grouping is always correct regardless of check-in status
+  var allSorted = pData.slice().sort(function(a,b){
+    return getDuprValue(a.dupr) - getDuprValue(b.dupr);
+  });
+
+  var n            = allSorted.length;
+  var courtsNeeded = Math.ceil(n / MAX);
+  var useCourts    = Math.max(numCourts, courtsNeeded);
+
+  // Build fresh state
+  ladderState = {registry:{}, courts:[], round:1, scores:{}, playerStatus:{}};
+
+  // Register all players - status based on check-in
+  var anyIn = pData.some(function(p){ return p.checkedIn; });
+  pData.forEach(function(p) {
+    ladderState.registry[p.name] = {name:p.name, dupr:p.dupr, globalIdx:p.globalIdx, courtIdx:-1};
+    // If nobody checked in at all, treat all as active; otherwise respect check-in
+    ladderState.playerStatus[p.name] = (!anyIn || p.checkedIn) ? 'active' : 'waiting';
+  });
+
+  // Distribute ALL players across courts by DUPR order (max 7 per court)
+  var pool = allSorted.slice();
+  for (var c = 0; c < useCourts; c++) {
+    var left  = useCourts - c;
+    var take  = Math.min(MAX, Math.ceil(pool.length / left));
+    var group = pool.splice(0, take);
+    if (!group.length) break;
+    var dMin  = getDuprValue(group[0].dupr).toFixed(2);
+    var dMax  = getDuprValue(group[group.length-1].dupr).toFixed(2);
+    var names = group.map(function(p){ return p.name; });
+    names.forEach(function(name){ ladderState.registry[name].courtIdx = c; });
+    ladderState.courts.push({idx:c, label:'Court '+(c+1), playerNames:names, duprRange:dMin+' – '+dMax});
+  }
+
+  // Pad to numCourts if needed
+  while (ladderState.courts.length < numCourts) {
+    var ci2 = ladderState.courts.length;
+    ladderState.courts.push({idx:ci2, label:'Court '+(ci2+1), playerNames:[], duprRange:'—'});
+  }
+
+  renderLadder();
+  showPg('pgLadder');
+}
+function getActivePlayers(courtIdx) {
+  var ct = ladderState.courts[courtIdx];
+  return ct.playerNames.filter(function(name) {
+    return ladderState.playerStatus[name] === 'active';
+  });
+}
+
+function togglePlayerStatus(name, newStatus) {
+  ladderState.playerStatus[name] = newStatus;
+  renderLadder();
+}
+function toggleStatus(btn) {
+  var name   = btn.dataset.pname;
+  var status = btn.dataset.status;
+  if (name && status) {
+    ladderState.playerStatus[name] = status;
+    renderLadder();
+  }
+}
+
+function renderLadder() {
+  var cfg = getConfig();
+  var el  = document.getElementById('ladderWrap');
+  if (!el) return;
+  if (!ladderState.courts.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-t">Generate from Section A</div></div>';
+    return;
+  }
+
+  var o = '';
+
+  // Round info bar
+  o += '<div style="margin-bottom:14px;padding:12px 16px;background:var(--sf);border:1.5px solid var(--b);border-radius:var(--rr);display:flex;gap:16px;align-items:center;flex-wrap:wrap">';
+  o += '<div><div style="font-size:11px;color:var(--tx3);text-transform:uppercase;letter-spacing:.07em">Current Round</div>';
+  o += '<div style="font-family:\'DM Mono\',monospace;font-size:26px;font-weight:700;color:var(--c1)">'+ladderState.round+'</div></div>';
+  o += '<div style="flex:1;font-size:13px;color:var(--tx2)">Max <strong>'+cfg.maxPts+' pts</strong> &middot; Enter the <strong>losing score</strong> &mdash; winning score auto-fills to '+cfg.maxPts+'<br><span style="font-size:11px;color:var(--tx3)">Winners move to the next higher court &uarr; &middot; Losers move to the next lower court &darr;</span></div>';
+  o += '</div>';
+
+  o += '<div class="courts-grid">';
+
+  for (var ci = 0; ci < ladderState.courts.length; ci++) {
+    var ct        = ladderState.courts[ci];
+    var allNames  = ct.playerNames;
+    var active    = getActivePlayers(ci);
+    var tA        = active.slice(0, 2);
+    var tB        = active.slice(2, 4);
+    var sitting   = active.slice(4);
+    var key       = 'r' + ladderState.round + 'c' + ci;
+    var sc        = ladderState.scores[key] || {sA:'', sB:''};
+    var sA = sc.sA, sB = sc.sB;
+    var hc        = (ci % 2 === 0) ? 'c1' : 'c2';
+
+    o += '<div class="court-block">';
+    o += '<div class="court-hdr '+hc+'" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">';
+    o += '<span class="court-label">'+ct.label+'</span>';
+    o += '<span class="court-players">'+allNames.length+' players &middot; DUPR '+ct.duprRange+'</span>';
+    o += '<button class="btn btn-p btn-s" style="margin-left:auto;white-space:nowrap" ';
+    o += 'data-court="'+ci+'" onclick="nextRound(+this.dataset.court)">&#9654; Next Round</button>';
+    o += '</div>';
+    o += '<div style="padding:12px">';
+
+    // Player roster with status controls
+    o += '<div style="margin-bottom:10px">';
+    for (var pi = 0; pi < allNames.length; pi++) {
+      var pname  = allNames[pi];
+      var preg   = ladderState.registry[pname] || {dupr:''};
+      var pstat  = ladderState.playerStatus[pname] || 'active';
+      var b      = getDuprBand(preg.dupr, cfg);
+      var statColor = pstat==='active' ? 'var(--green)' : pstat==='resting' ? 'var(--orange)' : 'var(--tx3)';
+      var statIcon  = pstat==='active' ? '&#9679;' : pstat==='resting' ? '&#9855;' : '&#9203;';
+      var safeName  = pname.replace(/"/g, '&quot;');
+
+      o += '<div style="display:flex;align-items:center;gap:7px;padding:5px 0;border-bottom:1px solid var(--b);flex-wrap:wrap">';
+      o += '<span style="color:'+statColor+';font-size:11px;min-width:14px">'+statIcon+'</span>';
+      o += '<span class="dupr-badge '+b.css+'">'+((preg.dupr)||'NR')+'</span>';
+      o += '<span style="font-weight:500;flex:1;font-size:13px">'+pname+'</span>';
+      if (pstat === 'waiting') {
+        o += '<span style="font-size:10px;color:var(--tx3);padding:2px 6px;background:#f0f0f0;border-radius:4px">&#9203; arriving</span>';
+      }
+      // Active button (shown when resting or waiting)
+      if (pstat !== 'active') {
+        o += '<button data-pname="'+safeName+'" data-status="active" onclick="toggleStatus(this)" ';
+        o += 'style="font-size:11px;padding:2px 8px;border:1.5px solid var(--green);color:var(--green);background:none;border-radius:5px;cursor:pointer;font-weight:600">&#9654; Active</button>';
+      }
+      // Rest button (shown when active or waiting)
+      if (pstat !== 'resting') {
+        o += '<button data-pname="'+safeName+'" data-status="resting" onclick="toggleStatus(this)" ';
+        o += 'style="font-size:11px;padding:2px 8px;border:1.5px solid var(--orange);color:var(--orange);background:none;border-radius:5px;cursor:pointer;font-weight:600">&#9855; Rest</button>';
+      }
+      o += '</div>';
+    }
+    o += '</div>';
+
+    // Match card
+    if (tA.length === 2 && tB.length === 2) {
+      var pA0 = ladderState.registry[tA[0]] || {dupr:''};
+      var pA1 = ladderState.registry[tA[1]] || {dupr:''};
+      var pB0 = ladderState.registry[tB[0]] || {dupr:''};
+      var pB1 = ladderState.registry[tB[1]] || {dupr:''};
+      var bA0 = getDuprBand(pA0.dupr, cfg);
+      var bA1 = getDuprBand(pA1.dupr, cfg);
+      var bB0 = getDuprBand(pB0.dupr, cfg);
+      var bB1 = getDuprBand(pB1.dupr, cfg);
+
+      o += '<div style="background:var(--c1bg);border:2px solid var(--c1bdr);border-radius:var(--rr);padding:14px">';
+      o += '<div style="font-size:11px;font-weight:700;color:var(--c1);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">&#127992; Round '+ladderState.round+' Match</div>';
+
+      // Team A
+      o += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">';
+      o += '<div style="flex:1">';
+      o += '<div style="font-size:11px;color:var(--tx3);font-weight:600;margin-bottom:3px">TEAM A</div>';
+      o += '<div style="font-size:16px;font-weight:700">'+tA[0]+' <span class="dupr-badge '+bA0.css+'" style="font-size:10px">'+(pA0.dupr||'NR')+'</span></div>';
+      o += '<div style="font-size:16px;font-weight:700">'+tA[1]+' <span class="dupr-badge '+bA1.css+'" style="font-size:10px">'+(pA1.dupr||'NR')+'</span></div>';
+      o += '</div>';
+      o += '<input type="number" min="0" max="'+cfg.maxPts+'" step="1" placeholder="0" value="'+sA+'" ';
+      o += 'data-key="'+key+'" data-side="a" oninput="saveScore(this)" ';
+      o += 'style="width:70px;font-size:22px;font-weight:700;padding:8px;text-align:center;border:2px solid var(--b2);border-radius:8px;background:var(--sf);color:var(--tx);outline:none">';
+      o += '</div>';
+
+      o += '<div style="text-align:center;font-size:14px;font-weight:700;color:var(--tx3);margin:4px 0">VS</div>';
+
+      // Team B
+      o += '<div style="display:flex;align-items:center;gap:10px;margin-top:6px">';
+      o += '<div style="flex:1">';
+      o += '<div style="font-size:11px;color:var(--tx3);font-weight:600;margin-bottom:3px">TEAM B</div>';
+      o += '<div style="font-size:16px;font-weight:700">'+tB[0]+' <span class="dupr-badge '+bB0.css+'" style="font-size:10px">'+(pB0.dupr||'NR')+'</span></div>';
+      o += '<div style="font-size:16px;font-weight:700">'+tB[1]+' <span class="dupr-badge '+bB1.css+'" style="font-size:10px">'+(pB1.dupr||'NR')+'</span></div>';
+      o += '</div>';
+      o += '<input type="number" min="0" max="'+cfg.maxPts+'" step="1" placeholder="0" value="'+sB+'" ';
+      o += 'data-key="'+key+'" data-side="b" oninput="saveScore(this)" ';
+      o += 'style="width:70px;font-size:22px;font-weight:700;padding:8px;text-align:center;border:2px solid var(--b2);border-radius:8px;background:var(--sf);color:var(--tx);outline:none">';
+      o += '</div>';
+
+      // Diff
+      o += '<div id="d_'+key+'" style="margin-top:10px;padding:8px;background:rgba(0,0,0,.04);border-radius:6px;font-size:13px;';
+      if (sA !== '' && sB !== '') {
+        var vA2=parseFloat(sA), vB2=parseFloat(sB), dA=vA2-vB2, dB=vB2-vA2;
+        o += 'display:block">';
+        o += '<span style="color:'+(dA>=0?'var(--green)':'var(--red)')+';font-weight:700">'+(dA>=0?'+':'')+dA.toFixed(0)+'</span>';
+        o += '<span style="color:var(--tx3);font-size:11px"> pts &nbsp;'+tA[0]+' &amp; '+tA[1]+'</span>';
+        o += ' &nbsp;&nbsp;<span style="color:'+(dB>=0?'var(--green)':'var(--red)')+';font-weight:700">'+(dB>=0?'+':'')+dB.toFixed(0)+'</span>';
+        o += '<span style="color:var(--tx3);font-size:11px"> pts &nbsp;'+tB[0]+' &amp; '+tB[1]+'</span>';
+      } else { o += 'display:none">'; }
+      o += '</div>';
+      o += '</div>'; // match card
+
+      // Next up (active players sitting out)
+      if (sitting.length) {
+        o += '<div style="margin-top:8px;padding:8px 10px;background:var(--sf2);border:1.5px solid var(--b);border-radius:var(--r)">';
+        o += '<div style="font-size:11px;font-weight:700;color:var(--tx2);text-transform:uppercase;margin-bottom:5px">&#9197; Next Up</div>';
+        o += '<div style="display:flex;gap:6px;flex-wrap:wrap">';
+        for (var si = 0; si < sitting.length; si++) {
+          var sn = sitting[si];
+          var sp = ladderState.registry[sn] || {dupr:''};
+          var sb = getDuprBand(sp.dupr, cfg);
+          o += '<div style="background:var(--sf);border:1.5px solid var(--b2);border-radius:8px;padding:5px 9px;text-align:center">';
+          o += '<div style="font-size:13px;font-weight:600">'+sn+'</div>';
+          o += '<span class="dupr-badge '+sb.css+'" style="font-size:10px">'+(sp.dupr||'NR')+'</span>';
+          o += '</div>';
+        }
+        o += '</div></div>';
+      }
+
+    } else {
+      o += '<div style="padding:10px;background:#fff8e0;border:1.5px solid #e8d080;border-radius:var(--r);font-size:13px;color:#8a6010">&#9888; Need 4 active players. Active: '+active.length+(active.length<4?' &mdash; mark more players as Active above':'')+'</div>';
+    }
+
+    o += '</div></div>';
+  }
+
+  o += '</div>';
+  o += ladderRankings();
+  el.innerHTML = o;
+}
+
+function saveScore(inp) {
+  var key  = inp.dataset.key;
+  var side = inp.dataset.side;
+  var val  = inp.value;
+  if (!ladderState.scores[key]) ladderState.scores[key] = {sA:'',sB:''};
+  ladderState.scores[key][side] = val;
+
+  var cfg = getConfig();
+  var v   = parseFloat(val);
+  if (!isNaN(v) && val !== '') {
+    if (v < cfg.maxPts) {
+      var other = side==='a' ? 'b' : 'a';
+      ladderState.scores[key][other] = String(cfg.maxPts);
+      var otherInp = document.querySelector('[data-key="'+key+'"][data-side="'+other+'"]');
+      if (otherInp && otherInp !== inp) otherInp.value = String(cfg.maxPts);
+    }
+    if (v > cfg.maxPts) { ladderState.scores[key][side] = String(cfg.maxPts); inp.value = String(cfg.maxPts); }
+  }
+
+  var sc  = ladderState.scores[key];
+  var el2 = document.getElementById('d_'+key);
+  if (!el2) return;
+  var vA2=parseFloat(sc.sA), vB2=parseFloat(sc.sB);
+  if (!isNaN(vA2) && !isNaN(vB2) && sc.sA!=='' && sc.sB!=='') {
+    var dA=vA2-vB2, dB=vB2-vA2;
+    var ci2 = parseInt(key.split('c')[1]);
+    var act = getActivePlayers(ci2);
+    var nA  = act.length>=2 ? act[0]+' & '+act[1] : 'Team A';
+    var nB  = act.length>=4 ? act[2]+' & '+act[3] : 'Team B';
+    el2.style.display='block';
+    el2.innerHTML = '<span style="color:'+(dA>=0?'var(--green)':'var(--red)')+';font-weight:700">'+(dA>=0?'+':'')+dA.toFixed(0)+'</span><span style="color:var(--tx3);font-size:11px"> pts &nbsp;'+nA+'</span>';
+    el2.innerHTML+= ' &nbsp;&nbsp;<span style="color:'+(dB>=0?'var(--green)':'var(--red)')+';font-weight:700">'+(dB>=0?'+':'')+dB.toFixed(0)+'</span><span style="color:var(--tx3);font-size:11px"> pts &nbsp;'+nB+'</span>';
+  } else { el2.style.display='none'; }
+}
+
+function nextRound(ci) {
+  var ct  = ladderState.courts[ci];
+  var key = 'r' + ladderState.round + 'c' + ci;
+  var sc  = ladderState.scores[key];
+
+  if (!sc || sc.sA==='' || sc.sB==='') {
+    var msg = 'Enter scores for ' + ct.label + ' first.\n';
+    msg += 'Debug: key=' + key + ', scores=' + JSON.stringify(ladderState.scores);
+    alert(msg);
+    return;
+  }
+
+  var active  = getActivePlayers(ci);
+  var tA      = active.slice(0,2);
+  var tB      = active.slice(2,4);
+  var vA      = parseFloat(sc.sA);
+  var vB      = parseFloat(sc.sB);
+
+  if (tA.length < 2 || tB.length < 2) {
+    alert('Not enough active players to determine teams.');
+    return;
+  }
+
+  // Save round history
+  if (!ladderState.scores[key].tA) {
+    ladderState.scores[key].tA = tA.slice();
+    ladderState.scores[key].tB = tB.slice();
+  }
+
+  // Court 1 = lowest/weakest, Court N = highest/strongest
+  // Winners → move UP to harder court (higher index)
+  // Losers  → move DOWN to easier court (lower index)
+  var winners = (vA >= vB) ? tA.slice() : tB.slice();
+  var losers  = (vA >= vB) ? tB.slice() : tA.slice();
+  var upIdx   = Math.min(ladderState.courts.length - 1, ci + 1); // stronger court
+  var dnIdx   = Math.max(0, ci - 1);                              // weaker court
+
+  // Move winners UP
+  if (upIdx !== ci) {
+    winners.forEach(function(name) {
+      // Remove from current court
+      ct.playerNames = ct.playerNames.filter(function(n){ return n !== name; });
+      // Add to upper court
+      if (ladderState.courts[upIdx].playerNames.indexOf(name) === -1) {
+        ladderState.courts[upIdx].playerNames.push(name);
+      }
+      ladderState.registry[name].courtIdx = upIdx;
+    });
+  }
+
+  // Move losers DOWN
+  if (dnIdx !== ci) {
+    losers.forEach(function(name) {
+      ct.playerNames = ct.playerNames.filter(function(n){ return n !== name; });
+      if (ladderState.courts[dnIdx].playerNames.indexOf(name) === -1) {
+        ladderState.courts[dnIdx].playerNames.push(name);
+      }
+      ladderState.registry[name].courtIdx = dnIdx;
+    });
+  }
+
+  // Cap each court at 7
+  ladderState.courts.forEach(function(c2) {
+    if (c2.playerNames.length > 7) c2.playerNames = c2.playerNames.slice(0, 7);
+  });
+
+  // Check round increment (all courts done this round)
+  var allDone = ladderState.courts.every(function(c2, i2) {
+    var k = 'r' + ladderState.round + 'c' + i2;
+    var s = ladderState.scores[k];
+    return s && s.sA !== '' && s.sB !== '';
+  });
+  if (allDone) ladderState.round++;
+
+  renderLadder();
+}
+
+function shuffle(arr) {
+  var a = arr.slice();
+  for (var i = a.length-1; i > 0; i--) {
+    var j = Math.floor(Math.random()*(i+1));
+    var tmp=a[i]; a[i]=a[j]; a[j]=tmp;
+  }
+  return a;
+}
+
+function ladderRankings() {
+  var cfg    = getConfig();
+  var totals = {};
+
+  Object.keys(ladderState.scores).forEach(function(key) {
+    var sc = ladderState.scores[key];
+    if (!sc || sc.sA==='' || sc.sB==='' || !sc.tA || !sc.tB) return;
+    var vA=parseFloat(sc.sA), vB=parseFloat(sc.sB);
+    var dA=vA-vB, dB=vB-vA;
+    sc.tA.forEach(function(name) {
+      if (!totals[name]) totals[name]={name:name,played:0,wins:0,losses:0,pts:0};
+      totals[name].played++; totals[name].pts+=dA;
+      if(dA>=0) totals[name].wins++; else totals[name].losses++;
+    });
+    sc.tB.forEach(function(name) {
+      if (!totals[name]) totals[name]={name:name,played:0,wins:0,losses:0,pts:0};
+      totals[name].played++; totals[name].pts+=dB;
+      if(dB>=0) totals[name].wins++; else totals[name].losses++;
+    });
+  });
+
+  var rows = Object.values(totals).sort(function(a,b){ return b.pts-a.pts; });
+  if (!rows.length) return '';
+
+  var o = '<div class="rank-section" style="margin-top:24px">';
+  o += '<div class="rank-title">Ladder Rankings &mdash; after Round '+(ladderState.round>1?ladderState.round-1:1)+'</div>';
+  o += '<div style="overflow-x:auto"><table class="tbl"><thead><tr>';
+  o += '<th>Rank</th><th class="L">Player</th><th>Played</th><th>Won</th><th>Lost</th><th>Pts (diff)</th>';
+  o += '</tr></thead><tbody>';
+  rows.forEach(function(r,i) {
+    var pos=i+1;
+    var m=pos===1?'<span class="medal m1">1</span>':pos===2?'<span class="medal m2">2</span>':pos===3?'<span class="medal m3">3</span>':'';
+    var col=r.pts>=0?'var(--green)':'var(--red)';
+    o+='<tr><td class="dm mono">'+pos+'</td><td class="pn L">'+m+r.name+'</td>';
+    o+='<td class="mono mu">'+r.played+'</td><td class="mono" style="color:var(--green)">'+r.wins+'</td>';
+    o+='<td class="mono" style="color:var(--red)">'+r.losses+'</td>';
+    o+='<td class="mono" style="color:'+col+';font-weight:700">'+(r.pts>=0?'+':'')+r.pts+'</td></tr>';
+  });
+  o += '</tbody></table></div></div>';
+  return o;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CONFIG HELPERS
+// ═══════════════════════════════════════════════════════════════════════════
+function getConfig() {
+  return {
+    assignType : document.getElementById('assignType')?.value || 'roundrobin',
+    gameType   : document.getElementById('gameType')?.value   || 'points',
+    showDupr   : document.getElementById('showDupr')?.checked || false,
+    maxPts     : parseInt(document.getElementById('maxPts')?.value || '15'),
+    band1      : parseFloat(document.getElementById('band1')?.value || '2.499'),
+    band2      : parseFloat(document.getElementById('band2')?.value || '2.999'),
+    band3      : parseFloat(document.getElementById('band3')?.value || '3.499'),
+  };
+}
+
+function getDuprBand(ratingStr, cfg) {
+  if (!ratingStr || String(ratingStr).toUpperCase() === 'NR') return {band:0, label:'NR', css:'dupr-nr'};
+  const v = parseFloat(ratingStr);
+  if (isNaN(v) || v < 2.0) return {band:0, label:'NR', css:'dupr-nr'};
+  if (v <= cfg.band1) return {band:1, label:'2.0–'+cfg.band1, css:'dupr-2'};
+  if (v <= cfg.band2) return {band:2, label:(cfg.band1+0.001).toFixed(3)+'–'+cfg.band2, css:'dupr-25'};
+  if (v <= cfg.band3) return {band:3, label:(cfg.band2+0.001).toFixed(3)+'–'+cfg.band3, css:'dupr-3'};
+  return {band:4, label:(cfg.band3+0.001).toFixed(3)+'+', css:'dupr-35'};
+}
+
+// getDuprValue defined in ladder block above
+
+
+
+
+
+function getPlayerData() {
+  return [...document.querySelectorAll('.pentry')].map((row, i) => {
+    const name = row.querySelector('.pinp')?.value.trim() || '';
+    if (!name) return null;
+    const dupr      = row.querySelector('.dupr-inp')?.value.trim() || '';
+    const checkedIn = row.querySelector('.checkin-chk')?.checked || false;
+    return {name, dupr, checkedIn, globalIdx: i};
+  }).filter(Boolean);
+}
+
+function onConfigChange() {
+  const cfg = getConfig();
+  const isDupr   = cfg.gameType === 'dupr' || cfg.gameType === 'duprladder';
+  const isLadder = cfg.gameType === 'duprladder';
+  const isPoints = cfg.gameType === 'points';
+  const isRR     = cfg.assignType === 'roundrobin';
+
+  if (isDupr) document.getElementById('showDupr').checked = true;
+  const showDuprFields = isDupr || cfg.showDupr;
+  document.querySelectorAll('.dupr-inp').forEach(el => { el.style.display = showDuprFields ? 'inline-block' : 'none'; });
+  document.querySelectorAll('.checkin-lbl').forEach(el => { el.style.display = isLadder ? 'flex' : 'none'; });
+
+  const bp = document.getElementById('duprBandsPanel');
+  if (bp) bp.style.display = isDupr ? 'block' : 'none';
+  const mp = document.getElementById('maxPtsBox');
+  if (mp) mp.style.display = isLadder ? 'flex' : 'none';
+
+  if (isLadder && numCourtsConfig < 3) {
+    numCourtsConfig = 3;
+    document.getElementById('courtCount').textContent = 3;
+  }
+
+  const s1 = document.querySelector('.ntab[data-pg="pgS1"]');
+  const s2 = document.querySelector('.ntab[data-pg="pgS2"]');
+  const s3 = document.querySelector('.ntab[data-pg="pgS3"]');
+  const td = document.getElementById('ntabDupr');
+  const tl = document.getElementById('ntabLadder');
+
+  if (isPoints && isRR) {
+    [s1,s2,s3].forEach(t=>t&&t.classList.remove('tab-hidden'));
+    td && td.classList.add('tab-hidden');
+    tl && tl.classList.add('tab-hidden');
+  } else if (cfg.gameType==='dupr' && isRR) {
+    [s1,s2,s3].forEach(t=>t&&t.classList.add('tab-hidden'));
+    td && td.classList.remove('tab-hidden');
+    tl && tl.classList.add('tab-hidden');
+  } else if (isLadder && isRR) {
+    [s1,s2,s3].forEach(t=>t&&t.classList.add('tab-hidden'));
+    td && td.classList.add('tab-hidden');
+    tl && tl.classList.remove('tab-hidden');
+  }
+}
 // NAV
 // ═══════════════════════════════════════════════════════════════════════════
 function showPg(id){
   document.querySelectorAll('.pg').forEach(p=>p.classList.remove('on'));
   document.querySelectorAll('.ntab').forEach(t=>t.classList.remove('on'));
   document.getElementById(id).classList.add('on');
-  document.querySelectorAll('.ntab')[{pgA:0,pgS1:1,pgS2:2,pgS3:3,pgR:4,pgLD:5}[id]].classList.add('on');
+  const pgMap = {pgA:0,pgS1:1,pgS2:2,pgS3:3,pgR:6,pgLD:7,pgDupr:4,pgLadder:5};
+  if (pgMap[id] !== undefined) document.querySelectorAll('.ntab')[pgMap[id]].classList.add('on');
   if(id==='pgLD') renderLuckyDraw();
   if(id==='pgR') computeRankings();
 }
