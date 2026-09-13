@@ -1655,6 +1655,13 @@ function renderLadder() {
     var key     = 'c' + ci + 'r' + cr;
     var sc        = ladderState.scores[key] || {sA:'', sB:''};
     var sA = sc.sA, sB = sc.sB;
+    // Store current teams into score record at render time (before scores entered)
+    // so nextRound knows exactly who played even after playerNames order changes
+    if (!ladderState.scores[key]) ladderState.scores[key] = {sA:'',sB:''};
+    if (!ladderState.scores[key].tA && tA.length===2 && tB.length===2) {
+      ladderState.scores[key].tA = tA.slice();
+      ladderState.scores[key].tB = tB.slice();
+    }
     var hc        = (ci % 2 === 0) ? 'c1' : 'c2';
 
     o += '<div class="court-block">';
@@ -1818,8 +1825,7 @@ function saveScore(inp) {
 }
 
 function nextRound(ci) {
-  var ct    = ladderState.courts[ci];
-  // Each court has its own independent round counter
+  var ct = ladderState.courts[ci];
   if (!ladderState.courtRound) ladderState.courtRound = {};
   if (!ladderState.courtRound[ci]) ladderState.courtRound[ci] = 1;
   var cr  = ladderState.courtRound[ci];
@@ -1831,76 +1837,87 @@ function nextRound(ci) {
     return;
   }
 
-  var active = getActivePlayers(ci);
-  var tA     = active.slice(0, 2);
-  var tB     = active.slice(2, 4);
-  var vA     = parseFloat(sc.sA);
-  var vB     = parseFloat(sc.sB);
-
+  // Use the teams that were recorded at render time (not re-derived)
+  var tA = sc.tA || [];
+  var tB = sc.tB || [];
   if (tA.length < 2 || tB.length < 2) {
-    alert('Not enough active players on ' + ct.label + '.');
+    alert('Team data missing. Please re-generate the ladder.');
     return;
   }
 
-  // Save team history onto the score record
-  ladderState.scores[key].tA = tA.slice();
-  ladderState.scores[key].tB = tB.slice();
-  ladderState.scores[key].court = ct.label;
-
-  // Court 1 = weakest, Court N = strongest
-  // Winners → move UP (higher index = harder court)
-  // Losers  → move DOWN (lower index = easier court)
+  var vA      = parseFloat(sc.sA);
+  var vB      = parseFloat(sc.sB);
   var winners = (vA >= vB) ? tA.slice() : tB.slice();
   var losers  = (vA >= vB) ? tB.slice() : tA.slice();
-  var upIdx   = Math.min(ladderState.courts.length - 1, ci + 1);
-  var dnIdx   = Math.max(0, ci - 1);
+  var sitters = getActivePlayers(ci).slice(4); // players who sat this round
 
-  // Remove the 4 active players from this court first
-  // Sitters (players 5-7) stay on this court
-  active.slice(0, 4).forEach(function(name) {
+  ladderState.scores[key].court = ct.label;
+
+  var upIdx = Math.min(ladderState.courts.length - 1, ci + 1); // harder court
+  var dnIdx = Math.max(0, ci - 1);                              // easier court
+
+  // ── Remove all 4 who played from this court; sitters stay ──────────────
+  tA.concat(tB).forEach(function(name) {
     ct.playerNames = ct.playerNames.filter(function(n) { return n !== name; });
   });
 
-  // Winners move UP to harder court
+  // ── WINNERS move UP ──────────────────────────────────────────────────────
   if (upIdx !== ci) {
     winners.forEach(function(name) {
-      if (ladderState.courts[upIdx].playerNames.indexOf(name) === -1) {
-        ladderState.courts[upIdx].playerNames.push(name);
-      }
+      ladderState.courts[upIdx].playerNames.push(name);
       ladderState.registry[name].courtIdx = upIdx;
     });
   } else {
-    // Already at top — winners stay on this court
-    winners.forEach(function(name) {
-      if (ct.playerNames.indexOf(name) === -1) ct.playerNames.push(name);
-    });
+    // Top court — winners stay, go to back of queue (Next Up)
+    winners.forEach(function(name) { ct.playerNames.push(name); });
   }
 
-  // Losers move DOWN to easier court
-  if (dnIdx !== ci) {
-    losers.forEach(function(name) {
-      if (ladderState.courts[dnIdx].playerNames.indexOf(name) === -1) {
-        ladderState.courts[dnIdx].playerNames.push(name);
-      }
-      ladderState.registry[name].courtIdx = dnIdx;
+  // ── LOSERS: split and mix with Next Up (sitters) on destination court ───
+  // Determine destination court for losers
+  var loserCourt = (dnIdx !== ci) ? ladderState.courts[dnIdx] : ct;
+  var loserDestIdx = (dnIdx !== ci) ? dnIdx : ci;
+
+  // Current "next up" on the loser destination court (active, not playing now)
+  var destActive = getActivePlayers(loserDestIdx);
+  // After the current round, the sitters on dest court become "next up"
+  // We need: each loser splits and partners with a different next-up player
+  // Add losers to destination court first
+  losers.forEach(function(name) {
+    if (loserCourt.playerNames.indexOf(name) === -1) {
+      loserCourt.playerNames.push(name);
+      ladderState.registry[name].courtIdx = loserDestIdx;
+    }
+  });
+
+  // Re-order destination court: sitters first, then losers
+  // This ensures the NEXT game pairs sitters with losers as new partners
+  // Sitters on dest court (players who weren't in the just-played game)
+  if (loserDestIdx !== ci) {
+    var destSitters = getActivePlayers(loserDestIdx).filter(function(name) {
+      return losers.indexOf(name) === -1;
     });
-  } else {
-    // Already at bottom — losers stay on this court
-    losers.forEach(function(name) {
-      if (ct.playerNames.indexOf(name) === -1) ct.playerNames.push(name);
+    // Interleave: sitter[0], loser[0], sitter[1], loser[1] → mixed partners
+    var interleaved = [];
+    var maxLen = Math.max(destSitters.length, losers.length);
+    for (var ix = 0; ix < maxLen; ix++) {
+      if (ix < destSitters.length) interleaved.push(destSitters[ix]);
+      if (ix < losers.length)      interleaved.push(losers[ix]);
+    }
+    // Replace active players in dest court with interleaved order
+    var destWaiting = loserCourt.playerNames.filter(function(n) {
+      return ladderState.playerStatus[n] !== 'active';
     });
+    loserCourt.playerNames = interleaved.concat(destWaiting);
   }
 
-  // Cap each affected court at 7
-  [ci, upIdx, dnIdx].forEach(function(idx) {
-    var c2 = ladderState.courts[idx];
+  // Cap courts at 7
+  [ci, upIdx, dnIdx].forEach(function(i2) {
+    var c2 = ladderState.courts[i2];
     if (c2 && c2.playerNames.length > 7) c2.playerNames = c2.playerNames.slice(0, 7);
   });
 
-  // Advance THIS court's round counter independently
+  // Advance this court's round
   ladderState.courtRound[ci] = cr + 1;
-
-  // Update global display round = max of all court rounds
   ladderState.round = 1;
   Object.keys(ladderState.courtRound).forEach(function(k) {
     if (ladderState.courtRound[k] > ladderState.round) ladderState.round = ladderState.courtRound[k];
