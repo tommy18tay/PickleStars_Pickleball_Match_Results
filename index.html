@@ -2035,25 +2035,25 @@ function ladderRankings() {
     var rNum = parts ? parseInt(parts[2]) : '?';
     if (rNum > maxRound) maxRound = rNum;
 
-    function addPlayer(name, diff, win, partner, vs, score) {
-      if (!totals[name]) totals[name]={name:name,dupr:'',played:0,wins:0,losses:0,pts:0,byRound:{},history:[]};
-      totals[name].played++;
-      totals[name].pts += diff;
-      if (win) totals[name].wins++; else totals[name].losses++;
-      // Store per-round pts (accumulate if multiple games same round)
-      totals[name].byRound[rNum] = (totals[name].byRound[rNum]||0) + diff;
-      totals[name].history.push({c:cNum, r:rNum, partner:partner, vs:vs, score:score, diff:diff, win:win});
-    }
-
-    var partnerA = sc.tA.filter(function(n){return n!==sc.tA[0];})[0]||'';
-    var partnerB = sc.tB.filter(function(n){return n!==sc.tB[0];})[0]||'';
+    // Process Team A players
     sc.tA.forEach(function(name) {
+      if (!totals[name]) totals[name]={name:name,dupr:'',played:0,wins:0,losses:0,pts:0,byRound:{},history:[]};
       var myPartner = sc.tA.filter(function(n){return n!==name;})[0]||'';
-      addPlayer(name, dA, dA>=0, myPartner, sc.tB.join(' & '), vA+'-'+vB);
+      totals[name].played++;
+      totals[name].pts += dA;
+      if (dA>=0) totals[name].wins++; else totals[name].losses++;
+      totals[name].byRound[rNum] = (totals[name].byRound[rNum]||0) + dA;
+      totals[name].history.push({c:cNum, r:rNum, partner:myPartner, vs:sc.tB.join(' & '), score:vA+'-'+vB, diff:dA, win:dA>=0});
     });
+    // Process Team B players
     sc.tB.forEach(function(name) {
+      if (!totals[name]) totals[name]={name:name,dupr:'',played:0,wins:0,losses:0,pts:0,byRound:{},history:[]};
       var myPartner = sc.tB.filter(function(n){return n!==name;})[0]||'';
-      addPlayer(name, dB, dB>=0, myPartner, sc.tA.join(' & '), vB+'-'+vA);
+      totals[name].played++;
+      totals[name].pts += dB;
+      if (dB>=0) totals[name].wins++; else totals[name].losses++;
+      totals[name].byRound[rNum] = (totals[name].byRound[rNum]||0) + dB;
+      totals[name].history.push({c:cNum, r:rNum, partner:myPartner, vs:sc.tA.join(' & '), score:vB+'-'+vA, diff:dB, win:dB>=0});
     });
   });
 
