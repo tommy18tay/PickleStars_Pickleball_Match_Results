@@ -1863,13 +1863,27 @@ function nextRound(ci) {
 
   // ── WINNERS move UP ──────────────────────────────────────────────────────
   if (upIdx !== ci) {
+    // Insert winners after the first 4 active players on destination court
+    // so they appear as "Next Up" for the very next game
+    var destActBefore = getActivePlayers(upIdx);
+    var destFirst4    = destActBefore.slice(0, 4); // currently playing
     winners.forEach(function(name) {
-      ladderState.courts[upIdx].playerNames.push(name);
+      ladderState.courts[upIdx].playerNames = ladderState.courts[upIdx].playerNames.filter(function(n){ return n !== name; });
       ladderState.registry[name].courtIdx = upIdx;
     });
+    // Rebuild order: current 4 active + winners (Next Up) + remaining sitters + waiting
+    var destRemaining = ladderState.courts[upIdx].playerNames.filter(function(n){
+      return destFirst4.indexOf(n) === -1;
+    });
+    ladderState.courts[upIdx].playerNames = destFirst4.concat(winners).concat(
+      destRemaining.filter(function(n){ return winners.indexOf(n) === -1; })
+    );
   } else {
-    // Top court — winners stay, go to back of queue (Next Up)
-    winners.forEach(function(name) { ct.playerNames.push(name); });
+    // Top court — winners stay, go to front of queue
+    winners.forEach(function(name) {
+      ct.playerNames = ct.playerNames.filter(function(n){ return n !== name; });
+      ct.playerNames.unshift(name);
+    });
   }
 
   // ── LOSERS: split and mix with Next Up (sitters) on destination court ───
@@ -1881,12 +1895,12 @@ function nextRound(ci) {
   var destActive = getActivePlayers(loserDestIdx);
   // After the current round, the sitters on dest court become "next up"
   // We need: each loser splits and partners with a different next-up player
-  // Add losers to destination court first
+  // Add losers to destination court (insert after current active game players
+  // so they mix with sitters for the next game)
   losers.forEach(function(name) {
-    if (loserCourt.playerNames.indexOf(name) === -1) {
-      loserCourt.playerNames.push(name);
-      ladderState.registry[name].courtIdx = loserDestIdx;
-    }
+    loserCourt.playerNames = loserCourt.playerNames.filter(function(n){ return n !== name; });
+    loserCourt.playerNames.push(name);
+    ladderState.registry[name].courtIdx = loserDestIdx;
   });
 
   // Re-order destination court: sitters first, then losers
@@ -1910,11 +1924,8 @@ function nextRound(ci) {
     loserCourt.playerNames = interleaved.concat(destWaiting);
   }
 
-  // Cap courts at 7
-  [ci, upIdx, dnIdx].forEach(function(i2) {
-    var c2 = ladderState.courts[i2];
-    if (c2 && c2.playerNames.length > 7) c2.playerNames = c2.playerNames.slice(0, 7);
-  });
+  // No hard cap — courts can temporarily hold more players between rounds
+  // The game always picks the first 4 active players to play
 
   // Advance this court's round
   ladderState.courtRound[ci] = cr + 1;
