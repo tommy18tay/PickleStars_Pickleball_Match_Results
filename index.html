@@ -1948,43 +1948,112 @@ function shuffle(arr) {
 
 function ladderRankings() {
   var cfg    = getConfig();
-  var totals = {};
+  var totals = {};  // name → {name,dupr,played,wins,losses,pts,rounds:[]}
+  var roundLog = []; // [{key,court,round,tA,tB,sA,sB,dA,dB}] sorted chronologically
 
+  // Seed totals with ALL registered players (so everyone appears even if 0 games)
+  Object.keys(ladderState.registry || {}).forEach(function(name) {
+    var p = ladderState.registry[name];
+    totals[name] = {name:name, dupr:p.dupr||'', played:0, wins:0, losses:0, pts:0, rounds:[]};
+  });
+
+  // Parse all score records
   Object.keys(ladderState.scores || {}).forEach(function(key) {
     var sc = ladderState.scores[key];
     if (!sc || !sc.tA || !sc.tB || sc.sA==='' || sc.sB==='') return;
     var vA=parseFloat(sc.sA), vB=parseFloat(sc.sB);
     var dA=vA-vB, dB=vB-vA;
+    // Parse key format c{ci}r{cr}
+    var parts = key.match(/c(\d+)r(\d+)/);
+    var courtNum = parts ? (parseInt(parts[1])+1) : '?';
+    var roundNum = parts ? parseInt(parts[2]) : '?';
+    var entry = {key:key, court:'Court '+courtNum, round:roundNum, tA:sc.tA, tB:sc.tB, sA:vA, sB:vB, dA:dA, dB:dB};
+    roundLog.push(entry);
+
     sc.tA.forEach(function(name) {
-      if (!totals[name]) totals[name]={name:name,played:0,wins:0,losses:0,pts:0};
-      totals[name].played++; totals[name].pts+=dA;
-      if(dA>=0) totals[name].wins++; else totals[name].losses++;
+      if (!totals[name]) totals[name]={name:name,dupr:'',played:0,wins:0,losses:0,pts:0,rounds:[]};
+      totals[name].played++;
+      totals[name].pts += dA;
+      if (dA>=0) totals[name].wins++; else totals[name].losses++;
+      totals[name].rounds.push({court:'Court '+courtNum, round:roundNum, partner:sc.tA.filter(function(n){return n!==name;})[0]||'', vs:sc.tB.join(' & '), score:vA+'-'+vB, diff:dA, win:dA>=0});
     });
     sc.tB.forEach(function(name) {
-      if (!totals[name]) totals[name]={name:name,played:0,wins:0,losses:0,pts:0};
-      totals[name].played++; totals[name].pts+=dB;
-      if(dB>=0) totals[name].wins++; else totals[name].losses++;
+      if (!totals[name]) totals[name]={name:name,dupr:'',played:0,wins:0,losses:0,pts:0,rounds:[]};
+      totals[name].played++;
+      totals[name].pts += dB;
+      if (dB>=0) totals[name].wins++; else totals[name].losses++;
+      totals[name].rounds.push({court:'Court '+courtNum, round:roundNum, partner:sc.tB.filter(function(n){return n!==name;})[0]||'', vs:sc.tA.join(' & '), score:vB+'-'+vA, diff:dB, win:dB>=0});
     });
   });
 
-  var rows = Object.values(totals).sort(function(a,b){ return b.pts-a.pts; });
-  if (!rows.length) return '';
+  // Sort roundLog chronologically by court then round
+  roundLog.sort(function(a,b){ return a.round-b.round || a.court.localeCompare(b.court); });
+
+  var rows = Object.values(totals).sort(function(a,b){
+    if (b.pts !== a.pts) return b.pts-a.pts;
+    return b.wins-a.wins;
+  });
 
   var o = '<div class="rank-section" style="margin-top:24px">';
-  o += '<div class="rank-title">Ladder Rankings &mdash; after Round '+(ladderState.round>1?ladderState.round-1:1)+'</div>';
+
+  // ── Overall Rankings Table ────────────────────────────────────────────
+  o += '<div class="rank-title">Ladder Rankings &mdash; all rounds</div>';
   o += '<div style="overflow-x:auto"><table class="tbl"><thead><tr>';
-  o += '<th>Rank</th><th class="L">Player</th><th>Played</th><th>Won</th><th>Lost</th><th>Pts (diff)</th>';
+  o += '<th>Rank</th><th class="L">Player</th><th>DUPR</th><th>Played</th><th>Won</th><th>Lost</th><th>Pts</th>';
   o += '</tr></thead><tbody>';
   rows.forEach(function(r,i) {
     var pos=i+1;
     var m=pos===1?'<span class="medal m1">1</span>':pos===2?'<span class="medal m2">2</span>':pos===3?'<span class="medal m3">3</span>':'';
-    var col=r.pts>=0?'var(--green)':'var(--red)';
-    o+='<tr><td class="dm mono">'+pos+'</td><td class="pn L">'+m+r.name+'</td>';
-    o+='<td class="mono mu">'+r.played+'</td><td class="mono" style="color:var(--green)">'+r.wins+'</td>';
+    var col=r.pts>0?'var(--green)':r.pts<0?'var(--red)':'var(--tx2)';
+    var b = getDuprBand(r.dupr, cfg);
+    o+='<tr>';
+    o+='<td class="dm mono">'+pos+'</td>';
+    o+='<td class="pn L">'+m+r.name+'</td>';
+    o+='<td><span class="dupr-badge '+b.css+'">'+(r.dupr||'NR')+'</span></td>';
+    o+='<td class="mono mu">'+r.played+'</td>';
+    o+='<td class="mono" style="color:var(--green)">'+r.wins+'</td>';
     o+='<td class="mono" style="color:var(--red)">'+r.losses+'</td>';
-    o+='<td class="mono" style="color:'+col+';font-weight:700">'+(r.pts>=0?'+':'')+r.pts+'</td></tr>';
+    o+='<td class="mono" style="color:'+col+';font-weight:700">'+(r.pts>0?'+':'')+r.pts+'</td>';
+    o+='</tr>';
+
+    // Expandable round breakdown per player (inline rows)
+    if (r.rounds.length) {
+      r.rounds.sort(function(a,b){return a.round-b.round;});
+      r.rounds.forEach(function(rd) {
+        var dc=rd.diff>=0?'var(--green)':'var(--red)';
+        o+='<tr style="background:var(--sf2);font-size:12px">';
+        o+='<td></td>';
+        o+='<td colspan="2" style="padding-left:24px;color:var(--tx3)">&#8627; '+rd.court+' R'+rd.round+' &nbsp;w/ '+rd.partner+'</td>';
+        o+='<td colspan="2" style="color:var(--tx2)">vs '+rd.vs+'</td>';
+        o+='<td style="color:var(--tx2)">'+rd.score+'</td>';
+        o+='<td style="color:'+dc+';font-weight:600">'+(rd.diff>=0?'+':'')+rd.diff+'</td>';
+        o+='</tr>';
+      });
+    }
   });
-  o += '</tbody></table></div></div>';
+  o += '</tbody></table></div>';
+
+  // ── Round-by-Round Match Log ──────────────────────────────────────────
+  if (roundLog.length) {
+    o += '<div style="margin-top:18px">';
+    o += '<div class="rank-title" style="margin-bottom:10px">Match Log</div>';
+    roundLog.forEach(function(entry) {
+      var winTeam = entry.dA>=0 ? entry.tA : entry.tB;
+      var loseTeam= entry.dA>=0 ? entry.tB : entry.tA;
+      var winScore= entry.dA>=0 ? entry.sA : entry.sB;
+      var loseScore=entry.dA>=0 ? entry.sB : entry.sA;
+      o += '<div style="padding:8px 12px;margin-bottom:6px;background:var(--sf);border:1.5px solid var(--b);border-radius:var(--r);font-size:13px;display:flex;gap:12px;flex-wrap:wrap;align-items:center">';
+      o += '<span style="font-size:11px;color:var(--tx3);white-space:nowrap;font-weight:600">'+entry.court+' &middot; R'+entry.round+'</span>';
+      o += '<span style="color:var(--green);font-weight:600">&#9650; '+winTeam.join(' & ')+'</span>';
+      o += '<span style="font-family:'DM Mono',monospace;font-size:14px;font-weight:700;color:var(--tx)">'+winScore+' – '+loseScore+'</span>';
+      o += '<span style="color:var(--red)">&#9660; '+loseTeam.join(' & ')+'</span>';
+      o += '<span style="font-size:11px;color:var(--tx3)">(diff '+(entry.dA>=0?'+':'')+entry.dA+')</span>';
+      o += '</div>';
+    });
+    o += '</div>';
+  }
+
+  o += '</div>';
   return o;
 }
 
