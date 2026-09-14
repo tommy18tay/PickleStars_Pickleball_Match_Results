@@ -493,6 +493,13 @@ function getCourtPlayerTotals(court) {
 // ═══════════════════════════════════════════════════════════════════════════
 // SECTION A
 // ═══════════════════════════════════════════════════════════════════════════
+window.onerror = function(msg, src, line, col, err) {
+  var el = document.getElementById('pGrid');
+  if (el) el.innerHTML = '<div style="color:red;padding:10px;font-size:13px">JS Error: ' + msg + ' (line ' + line + ')</div>';
+  console.error('JS Error:', msg, 'line:', line, err);
+  return false;
+};
+
 (function(){
   const g=document.getElementById('pGrid');
   for(let i=0;i<56;i++){
