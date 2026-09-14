@@ -493,13 +493,6 @@ function getCourtPlayerTotals(court) {
 // ═══════════════════════════════════════════════════════════════════════════
 // SECTION A
 // ═══════════════════════════════════════════════════════════════════════════
-window.onerror = function(msg, src, line, col, err) {
-  var el = document.getElementById('pGrid');
-  if (el) el.innerHTML = '<div style="color:red;padding:10px;font-size:13px">JS Error: ' + msg + ' (line ' + line + ')</div>';
-  console.error('JS Error:', msg, 'line:', line, err);
-  return false;
-};
-
 (function(){
   const g=document.getElementById('pGrid');
   for(let i=0;i<56;i++){
@@ -2184,4 +2177,87 @@ function toggleHistory(rowId) {
   row.style.display = visible ? 'none' : 'table-row';
   if (btn) btn.innerHTML = visible ? '&#9660;' : '&#9650;';
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CONFIG HELPERS
+// ═══════════════════════════════════════════════════════════════════════════
+function getConfig() {
+  return {
+    assignType : document.getElementById('assignType')?.value || 'roundrobin',
+    gameType   : document.getElementById('gameType')?.value   || 'points',
+    showDupr   : document.getElementById('showDupr')?.checked || false,
+    maxPts     : parseInt(document.getElementById('maxPts')?.value || '15'),
+    band1      : parseFloat(document.getElementById('band1')?.value || '2.499'),
+    band2      : parseFloat(document.getElementById('band2')?.value || '2.999'),
+    band3      : parseFloat(document.getElementById('band3')?.value || '3.499'),
+  };
+}
+
+function getDuprBand(ratingStr, cfg) {
+  if (!ratingStr || String(ratingStr).toUpperCase() === 'NR') return {band:0, label:'NR', css:'dupr-nr'};
+  var v = parseFloat(ratingStr);
+  if (isNaN(v) || v < 2.0) return {band:0, label:'NR', css:'dupr-nr'};
+  if (!cfg) cfg = {band1:2.499, band2:2.999, band3:3.499};
+  if (v <= cfg.band1) return {band:1, label:'2.0–'+cfg.band1, css:'dupr-2'};
+  if (v <= cfg.band2) return {band:2, label:(cfg.band1+0.001).toFixed(3)+'–'+cfg.band2, css:'dupr-25'};
+  if (v <= cfg.band3) return {band:3, label:(cfg.band2+0.001).toFixed(3)+'–'+cfg.band3, css:'dupr-3'};
+  return {band:4, label:(cfg.band3+0.001).toFixed(3)+'+', css:'dupr-35'};
+}
+
+function getPlayerData() {
+  return [...document.querySelectorAll('.pentry')].map(function(row, i) {
+    var name = row.querySelector('.pinp') ? row.querySelector('.pinp').value.trim() : '';
+    if (!name) return null;
+    var duprEl = row.querySelector('.dupr-inp');
+    var chkEl  = row.querySelector('.checkin-chk');
+    var dupr      = duprEl ? duprEl.value.trim() : '';
+    var checkedIn = chkEl  ? chkEl.checked       : false;
+    return {name:name, dupr:dupr, checkedIn:checkedIn, globalIdx:i};
+  }).filter(Boolean);
+}
+
+function onConfigChange() {
+  var cfg    = getConfig();
+  var isDupr  = cfg.gameType === 'dupr' || cfg.gameType === 'duprladder';
+  var isLadder= cfg.gameType === 'duprladder';
+  var isPoints= cfg.gameType === 'points';
+  var isRR    = cfg.assignType === 'roundrobin';
+
+  if (isDupr) { var sd = document.getElementById('showDupr'); if(sd) sd.checked = true; }
+  var showDuprFields = isDupr || cfg.showDupr;
+  document.querySelectorAll('.dupr-inp').forEach(function(el){ el.style.display = showDuprFields ? 'inline-block' : 'none'; });
+  document.querySelectorAll('.checkin-lbl').forEach(function(el){ el.style.display = isLadder ? 'flex' : 'none'; });
+
+  var bp = document.getElementById('duprBandsPanel');
+  if (bp) bp.style.display = isDupr ? 'block' : 'none';
+  var mp = document.getElementById('maxPtsBox');
+  if (mp) mp.style.display = isLadder ? 'flex' : 'none';
+
+  if (isLadder && numCourtsConfig < 3) {
+    numCourtsConfig = 3;
+    var cc = document.getElementById('courtCount');
+    if (cc) cc.textContent = 3;
+  }
+
+  var s1 = document.querySelector('.ntab[data-pg="pgS1"]');
+  var s2 = document.querySelector('.ntab[data-pg="pgS2"]');
+  var s3 = document.querySelector('.ntab[data-pg="pgS3"]');
+  var td = document.getElementById('ntabDupr');
+  var tl = document.getElementById('ntabLadder');
+
+  if (isPoints && isRR) {
+    [s1,s2,s3].forEach(function(t){if(t)t.classList.remove('tab-hidden');});
+    if (td) td.classList.add('tab-hidden');
+    if (tl) tl.classList.add('tab-hidden');
+  } else if (cfg.gameType === 'dupr' && isRR) {
+    [s1,s2,s3].forEach(function(t){if(t)t.classList.add('tab-hidden');});
+    if (td) td.classList.remove('tab-hidden');
+    if (tl) tl.classList.add('tab-hidden');
+  } else if (isLadder && isRR) {
+    [s1,s2,s3].forEach(function(t){if(t)t.classList.add('tab-hidden');});
+    if (td) td.classList.add('tab-hidden');
+    if (tl) tl.classList.remove('tab-hidden');
+  }
+}
+
 
