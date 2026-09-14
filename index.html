@@ -326,6 +326,11 @@ nav{background:var(--sf);border-bottom:1px solid var(--b);padding:0 20px;display
 .sess-btn.leave:hover{background:rgba(255,123,123,.15)}
 .hostsync{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px;padding:13px 16px;background:var(--acbg);border:1.5px solid #b8d0f0;border-radius:var(--r);font-size:13px;color:var(--tx2)}
 .hostsync .code{font-family:'DM Mono',monospace;font-size:20px;font-weight:700;color:var(--c1);letter-spacing:.08em}
+
+.navsess{margin-left:auto;background:var(--sf2);border:1.5px solid var(--b2);color:var(--tx2);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;padding:8px 14px;border-radius:9px;cursor:pointer;white-space:nowrap;margin-right:4px}
+.navsess:hover{background:var(--sf3)}
+.navsess.live{background:var(--greenbg);border-color:var(--greenbdr);color:var(--green)}
+.navsess.court{background:var(--acbg);border-color:#b8d0f0;color:var(--c1)}
 </style>
 </head>
 <body>
@@ -342,7 +347,8 @@ nav{background:var(--sf);border-bottom:1px solid var(--b);padding:0 20px;display
   <button class="ntab tab-hidden" data-pg="pgLadder" onclick="showPg('pgLadder')">&#129522; Ladder</button>
   <button class="ntab" data-pg="pgR" onclick="showPg('pgR')">Rankings</button>
   <button class="ntab" data-pg="pgLD" onclick="showPg('pgLD')">&#127873; Lucky Draw</button>
-  <div style="margin-left:auto;font-size:11px;color:var(--tx3);padding:0 12px;white-space:nowrap">&copy; Tommy Tay</div>
+  <button class="navsess" id="navSess" onclick="sessNavClick()" title="Live session across devices">&#128225; Live: Off</button>
+  <div style="font-size:11px;color:var(--tx3);padding:0 12px;white-space:nowrap">&copy; Tommy Tay</div>
 </nav>
 
 <!-- ============ A: REGISTRATION ============ -->
@@ -2601,6 +2607,7 @@ function sessHostStart() {
   sessPush(true);
   sessStartPolling();
   paintSessBar();
+  paintNavSess();
   applyGates();
   alert('Live session started.\n\nSession code:  ' + SESS.code +
         '\n\nOn each courtside device open the Ladder tab, enter this code and pick its court.');
@@ -2613,6 +2620,7 @@ function sessHostStop() {
   SESS.code = '';
   SESS.status = '';
   paintSessBar();
+  paintNavSess();
   applyGates();
   renderLadder();
 }
@@ -2628,6 +2636,7 @@ function sessJoin() {
   SESS.role = 'court';
   SESS.courtIdx = ci;
   SESS.rev = -1;
+  paintNavSess();
   sessPull(true);
   sessStartPolling();
 }
@@ -2639,16 +2648,45 @@ function sessLeave() {
   SESS.courtIdx = null;
   SESS.code = '';
   ladderState.focusCourt = null;
+  paintNavSess();
   renderLadder();
 }
 
 // ---------- session bar ----------
+// Nav chip: one tap to start hosting, or shows what this device is doing
+function sessNavClick() {
+  if (SESS.role === 'host') {
+    if (confirm('Live session ' + SESS.code + ' is running.\n\nStop sharing this session?')) sessHostStop();
+    return;
+  }
+  if (SESS.role === 'court') {
+    showPg('pgLadder');
+    return;
+  }
+  if (!isAuthed) {
+    alert('To START a live session: open "Registration & Lucky Draw", log in as host, then tap this button again.\n\nTo JOIN as a courtside device: open the Ladder tab and enter the session code shown on the host device.');
+    showPg('pgA');
+    return;
+  }
+  sessHostStart();
+}
+
+function paintNavSess() {
+  var b = el('navSess');
+  if (!b) return;
+  b.className = 'navsess';
+  if (SESS.role === 'host')       { b.className += ' live';  b.innerHTML = '&#128225; Live: ' + SESS.code; }
+  else if (SESS.role === 'court') { b.className += ' court'; b.innerHTML = '&#128225; Court ' + (SESS.courtIdx + 1) + ' \u00b7 ' + SESS.code; }
+  else                            { b.innerHTML = '&#128225; Live: Off'; }
+}
+
 function hostSessToggle() {
   if (SESS.role === 'host') sessHostStop(); else sessHostStart();
   paintHostSync();
 }
 
 function paintHostSync() {
+  paintNavSess();
   var box = el('hostSync');
   if (box) box.style.display = isAuthed ? 'flex' : 'none';
   var info = el('hostSessInfo'), btn = el('hostSessBtn');
@@ -2701,6 +2739,7 @@ function sessBarMarkup() {
 }
 
 function paintSessBar() {
+  paintNavSess();
   var b = el('sessBar');
   if (!b) return;
   var host = b.parentNode;
@@ -2749,6 +2788,7 @@ document.addEventListener('touchend', function(){ spTouchY = null; });
 window.addEventListener('DOMContentLoaded', function() {
   buildGrid();
   applyGates();
+  paintNavSess();
   prizes = DEFAULT_PRIZES.map(function(p){ return {name:p.name, desc:p.desc}; });
   renderPrizeList();
   var d = new Date();
