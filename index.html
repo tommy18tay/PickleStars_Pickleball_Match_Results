@@ -134,6 +134,181 @@ nav{background:var(--sf);border-bottom:1px solid var(--b);padding:0 20px;display
 .info-box{background:var(--acbg);border:1.5px solid #b8d0f0;border-radius:var(--r);padding:12px 15px;font-size:13px;color:var(--tx2);margin-bottom:16px;line-height:1.7}
 .info-box strong{color:var(--c1);font-weight:600}
 .divider{border:none;border-top:1.5px solid var(--b);margin:20px 0}
+
+/* ═══════ LADDER — high-contrast futuristic panel, large type for elderly ═══════ */
+#pgLadder{background:linear-gradient(180deg,#0d1b2a 0%,#0a1520 100%);margin:0 -24px -60px;padding:24px 24px 70px;color:#e8f4ff}
+#pgLadder .stitle{color:#5ce1ff;font-size:30px;text-shadow:0 0 18px rgba(92,225,255,.35)}
+#pgLadder .ssub{color:#8fb8d4;font-size:16px}
+
+.ldr-bar{background:linear-gradient(135deg,rgba(92,225,255,.10),rgba(20,60,90,.35));border:2px solid rgba(92,225,255,.35);border-radius:18px;padding:18px 22px;margin-bottom:20px;display:flex;gap:24px;align-items:center;flex-wrap:wrap;box-shadow:0 0 28px rgba(92,225,255,.12),inset 0 1px 0 rgba(255,255,255,.06)}
+.ldr-rlabel{font-size:13px;color:#7fd4ff;text-transform:uppercase;letter-spacing:.16em;font-weight:700}
+.ldr-rnum{font-family:'DM Mono',monospace;font-size:52px;font-weight:600;color:#5ce1ff;line-height:1;text-shadow:0 0 24px rgba(92,225,255,.5)}
+.ldr-hint{flex:1;min-width:260px;font-size:16px;line-height:1.6;color:#bcd9ec}
+.ldr-hint strong{color:#5ce1ff}
+.ldr-hint .sub{display:block;font-size:14px;color:#7fa6c0;margin-top:4px}
+
+.ldr-courts{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:20px;margin-bottom:24px}
+@media(max-width:880px){.ldr-courts{grid-template-columns:1fr}}
+
+.ldr-court{background:linear-gradient(180deg,#12263a 0%,#0e1e2e 100%);border:2px solid rgba(92,225,255,.22);border-radius:20px;overflow:hidden;box-shadow:0 10px 34px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.05)}
+.ldr-chdr{padding:16px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:linear-gradient(135deg,rgba(92,225,255,.16),rgba(92,225,255,.03));border-bottom:2px solid rgba(92,225,255,.28)}
+.ldr-cname{font-family:'Fraunces',serif;font-size:26px;font-weight:600;color:#7fe8ff;letter-spacing:-.3px}
+.ldr-cmeta{font-size:14px;color:#8fb8d4;font-weight:500}
+.ldr-cround{background:rgba(92,225,255,.16);border:1.5px solid rgba(92,225,255,.4);color:#5ce1ff;border-radius:9px;padding:4px 12px;font-family:'DM Mono',monospace;font-size:15px;font-weight:600}
+
+.ldr-next{margin-left:auto;background:linear-gradient(135deg,#00b4d8,#0077b6);border:none;color:#fff;font-family:'DM Sans',sans-serif;font-size:17px;font-weight:700;padding:14px 24px;border-radius:12px;cursor:pointer;min-height:52px;white-space:nowrap;box-shadow:0 4px 16px rgba(0,180,216,.4);transition:.15s}
+.ldr-next:hover{background:linear-gradient(135deg,#48cae4,#0096c7);box-shadow:0 6px 22px rgba(0,180,216,.6)}
+.ldr-next:active{transform:translateY(1px)}
+
+.ldr-body{padding:18px 20px}
+.ldr-sect{font-size:13px;font-weight:700;color:#7fd4ff;text-transform:uppercase;letter-spacing:.14em;margin-bottom:12px}
+
+.ldr-prow{display:flex;align-items:center;gap:11px;padding:11px 12px;border-radius:11px;background:rgba(255,255,255,.035);border:1.5px solid rgba(255,255,255,.07);margin-bottom:7px;flex-wrap:wrap}
+.ldr-prow.on-court{background:rgba(92,225,255,.10);border-color:rgba(92,225,255,.3)}
+.ldr-prow.resting{opacity:.62}
+.ldr-dot{font-size:15px;min-width:16px}
+.ldr-pname{font-size:18px;font-weight:600;color:#eaf6ff;flex:1;min-width:90px}
+.ldr-dupr{font-family:'DM Mono',monospace;font-size:14px;font-weight:700;padding:4px 10px;border-radius:7px;background:rgba(255,255,255,.09);color:#bcd9ec;border:1.5px solid rgba(255,255,255,.14)}
+.ldr-pill{font-size:13px;font-weight:700;padding:4px 11px;border-radius:7px;white-space:nowrap}
+.ldr-pill.playing{background:rgba(92,225,255,.2);color:#5ce1ff;border:1.5px solid rgba(92,225,255,.45)}
+.ldr-pill.queue{background:rgba(255,255,255,.08);color:#9dc4dc;border:1.5px solid rgba(255,255,255,.14)}
+.ldr-pill.wait{background:rgba(255,183,77,.16);color:#ffc266;border:1.5px solid rgba(255,183,77,.4)}
+
+.ldr-sbtn{font-family:'DM Sans',sans-serif;font-size:15px;font-weight:700;padding:9px 15px;border-radius:10px;cursor:pointer;min-height:44px;white-space:nowrap;background:none;transition:.15s}
+.ldr-sbtn.go{border:2px solid #4ade80;color:#4ade80}
+.ldr-sbtn.go:hover{background:rgba(74,222,128,.16)}
+.ldr-sbtn.rest{border:2px solid #ffb74d;color:#ffb74d}
+.ldr-sbtn.rest:hover{background:rgba(255,183,77,.16)}
+
+.ldr-move{background:rgba(255,255,255,.07);border:2px solid rgba(255,255,255,.16);color:#cfe6f5;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;padding:8px 10px;border-radius:10px;cursor:pointer;min-height:44px;outline:none}
+.ldr-move:focus{border-color:#5ce1ff}
+.ldr-move option{background:#12263a;color:#eaf6ff}
+
+.ldr-match{background:linear-gradient(145deg,rgba(92,225,255,.10),rgba(0,119,182,.10));border:2.5px solid rgba(92,225,255,.4);border-radius:16px;padding:20px;margin-top:16px;box-shadow:inset 0 0 30px rgba(92,225,255,.07)}
+.ldr-mtitle{font-size:14px;font-weight:800;color:#5ce1ff;text-transform:uppercase;letter-spacing:.16em;margin-bottom:16px;text-align:center}
+.ldr-team{display:flex;align-items:center;gap:16px}
+.ldr-tinfo{flex:1;min-width:0}
+.ldr-tlabel{font-size:13px;font-weight:800;color:#7fd4ff;letter-spacing:.14em;margin-bottom:6px}
+.ldr-player{font-size:22px;font-weight:700;color:#fff;line-height:1.35;display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.ldr-sinp{width:92px;height:80px;font-family:'DM Mono',monospace;font-size:38px;font-weight:700;text-align:center;background:rgba(0,0,0,.42);border:3px solid rgba(92,225,255,.45);border-radius:14px;color:#fff;outline:none;box-shadow:inset 0 2px 10px rgba(0,0,0,.4)}
+.ldr-sinp:focus{border-color:#5ce1ff;box-shadow:0 0 0 4px rgba(92,225,255,.22),inset 0 2px 10px rgba(0,0,0,.4)}
+.ldr-sinp::placeholder{color:rgba(255,255,255,.25)}
+.ldr-vs{text-align:center;font-family:'Fraunces',serif;font-size:22px;font-weight:600;color:#5ce1ff;margin:12px 0;letter-spacing:.2em;opacity:.85}
+.ldr-diff{margin-top:16px;padding:13px 16px;border-radius:11px;background:rgba(0,0,0,.3);border:1.5px solid rgba(255,255,255,.1);font-size:17px;font-weight:600;text-align:center}
+.ldr-diff .pos{color:#4ade80;font-family:'DM Mono',monospace;font-size:21px;font-weight:700}
+.ldr-diff .neg{color:#ff7b7b;font-family:'DM Mono',monospace;font-size:21px;font-weight:700}
+.ldr-diff .lbl{color:#9dc4dc;font-size:15px;font-weight:500}
+
+.ldr-warn{padding:16px;background:rgba(255,183,77,.12);border:2px solid rgba(255,183,77,.4);border-radius:13px;font-size:17px;font-weight:600;color:#ffc266;margin-top:14px;text-align:center}
+
+.ldr-queue{margin-top:16px;padding:16px 18px;background:rgba(255,255,255,.04);border:2px solid rgba(255,255,255,.1);border-radius:14px}
+.ldr-qhdr{font-size:13px;font-weight:800;color:#9dc4dc;text-transform:uppercase;letter-spacing:.14em;margin-bottom:12px}
+.ldr-qlist{display:flex;gap:11px;flex-wrap:wrap}
+.ldr-qcard{background:rgba(255,255,255,.07);border:2px solid rgba(255,255,255,.14);border-radius:12px;padding:11px 15px;text-align:center;min-width:88px}
+.ldr-qpos{font-family:'DM Mono',monospace;font-size:12px;color:#5ce1ff;font-weight:700;margin-bottom:3px}
+.ldr-qname{font-size:17px;font-weight:700;color:#eaf6ff}
+
+#pgLadder .rank-title{color:#7fe8ff;font-size:22px}
+#pgLadder .tbl{background:rgba(255,255,255,.03);border-radius:12px;overflow:hidden}
+#pgLadder .tbl th{background:rgba(92,225,255,.13);color:#9dd9f5;font-size:13px;border-bottom:2px solid rgba(92,225,255,.25);padding:12px 11px}
+#pgLadder .tbl td{color:#e0f0fa;font-size:16px;border-bottom:1px solid rgba(255,255,255,.07);padding:12px 11px}
+#pgLadder .tbl tbody tr:hover td{background:rgba(92,225,255,.07)}
+#pgLadder .mono{font-size:16px}
+#pgLadder .mu,#pgLadder .dm{color:#8fb8d4}
+#pgLadder .pn{color:#fff;font-size:17px}
+#pgLadder .dupr-badge{font-size:13px;padding:3px 8px}
+#pgLadder .medal{width:26px;height:26px;font-size:12px}
+.ldr-exp{background:rgba(255,255,255,.07);border:2px solid rgba(92,225,255,.3);color:#5ce1ff;border-radius:9px;padding:6px 11px;cursor:pointer;font-size:16px;font-weight:700;min-height:38px;min-width:42px}
+.ldr-exp:hover{background:rgba(92,225,255,.16)}
+
+.ldr-gear{background:rgba(255,255,255,.08);border:2px solid rgba(92,225,255,.35);color:#5ce1ff;font-size:20px;line-height:1;padding:0 15px;height:52px;border-radius:12px;cursor:pointer;transition:.15s;flex-shrink:0}
+.ldr-gear:hover{background:rgba(92,225,255,.18)}
+.ldr-gear.open{background:#5ce1ff;color:#0d1b2a;border-color:#5ce1ff}
+.ldr-panel{margin-top:14px;padding:16px 18px;background:rgba(0,0,0,.3);border:2px solid rgba(92,225,255,.3);border-radius:14px}
+.ldr-phdr{font-size:13px;font-weight:800;color:#5ce1ff;text-transform:uppercase;letter-spacing:.14em;margin-bottom:6px}
+.ldr-pnote{font-size:14px;color:#8fb8d4;margin-bottom:14px;line-height:1.5}
+.ldr-mrow{display:flex;align-items:center;gap:11px;padding:9px 11px;background:rgba(255,255,255,.05);border:1.5px solid rgba(255,255,255,.09);border-radius:10px;margin-bottom:7px;flex-wrap:wrap}
+.ldr-mname{font-size:17px;font-weight:600;color:#eaf6ff;flex:1;min-width:100px}
+
+.ldr-roster{margin-top:16px;padding:16px 18px;background:rgba(255,255,255,.03);border:2px solid rgba(255,255,255,.09);border-radius:14px}
+
+/* ═══════ TOUCH SCORE PICKER ═══════ */
+.sp-veil{position:fixed;inset:0;background:rgba(4,12,20,.86);backdrop-filter:blur(6px);z-index:9998;display:flex;align-items:center;justify-content:center;padding:18px}
+.sp-box{background:linear-gradient(180deg,#12263a,#0d1b2a);border:2.5px solid rgba(92,225,255,.45);border-radius:22px;padding:22px;max-width:520px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 24px 70px rgba(0,0,0,.7),0 0 40px rgba(92,225,255,.18)}
+.sp-title{font-family:'Fraunces',serif;font-size:24px;font-weight:600;color:#7fe8ff;margin-bottom:4px;text-align:center}
+.sp-sub{font-size:15px;color:#8fb8d4;text-align:center;margin-bottom:8px}
+.sp-team{font-size:19px;font-weight:700;color:#fff;text-align:center;margin-bottom:16px;padding:11px 14px;background:rgba(92,225,255,.12);border:1.5px solid rgba(92,225,255,.32);border-radius:12px}
+.sp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(74px,1fr));gap:10px;margin-bottom:16px}
+.sp-num{height:66px;font-family:'DM Mono',monospace;font-size:27px;font-weight:700;background:rgba(255,255,255,.07);border:2.5px solid rgba(255,255,255,.16);color:#eaf6ff;border-radius:14px;cursor:pointer;transition:.12s}
+.sp-num:hover{background:rgba(92,225,255,.2);border-color:rgba(92,225,255,.55)}
+.sp-num:active{transform:scale(.94)}
+.sp-num.win{background:rgba(74,222,128,.16);border-color:rgba(74,222,128,.5);color:#7ef0a8}
+.sp-num.win:hover{background:rgba(74,222,128,.3)}
+.sp-num.sel{background:#5ce1ff;border-color:#5ce1ff;color:#0d1b2a}
+.sp-acts{display:flex;gap:11px}
+.sp-btn{flex:1;height:58px;font-family:'DM Sans',sans-serif;font-size:18px;font-weight:700;border-radius:13px;cursor:pointer;transition:.12s;background:none}
+.sp-btn.clear{border:2.5px solid rgba(255,183,77,.55);color:#ffc266}
+.sp-btn.clear:hover{background:rgba(255,183,77,.16)}
+.sp-btn.close{border:2.5px solid rgba(255,255,255,.28);color:#cfe6f5}
+.sp-btn.close:hover{background:rgba(255,255,255,.1)}
+.ldr-sinp{cursor:pointer;-webkit-user-select:none;user-select:none;touch-action:none}
+
+/* ═══════ COURT FULLSCREEN (courtside device) ═══════ */
+.ldr-fs{background:rgba(255,255,255,.08);border:2px solid rgba(92,225,255,.35);color:#5ce1ff;font-size:19px;line-height:1;padding:0 15px;height:52px;border-radius:12px;cursor:pointer;transition:.15s;flex-shrink:0}
+.ldr-fs:hover{background:rgba(92,225,255,.18)}
+.ldr-focusbar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px;padding:14px 18px;background:linear-gradient(135deg,rgba(92,225,255,.12),rgba(20,60,90,.35));border:2px solid rgba(92,225,255,.4);border-radius:16px}
+.ldr-exitfs{background:linear-gradient(135deg,#ff7b7b,#c43030);border:none;color:#fff;font-family:'DM Sans',sans-serif;font-size:17px;font-weight:700;padding:14px 24px;border-radius:12px;cursor:pointer;min-height:52px;box-shadow:0 4px 16px rgba(196,48,48,.4)}
+.ldr-exitfs:hover{background:linear-gradient(135deg,#ff9b9b,#d94040)}
+.ldr-focustitle{font-family:'Fraunces',serif;font-size:32px;font-weight:600;color:#7fe8ff;flex:1;min-width:180px}
+
+/* focused court: everything scaled up for viewing from a few feet away */
+.focus-mode .ldr-courts{grid-template-columns:1fr!important}
+.focus-mode .ldr-cname{font-size:34px}
+.focus-mode .ldr-cround{font-size:20px;padding:6px 16px}
+.focus-mode .ldr-cmeta{font-size:17px}
+.focus-mode .ldr-mtitle{font-size:18px}
+.focus-mode .ldr-player{font-size:34px}
+.focus-mode .ldr-tlabel{font-size:16px}
+.focus-mode .ldr-sinp{width:132px;height:116px;font-size:56px;border-width:4px}
+.focus-mode .ldr-vs{font-size:30px;margin:18px 0}
+.focus-mode .ldr-diff{font-size:21px;padding:17px}
+.focus-mode .ldr-diff .pos,.focus-mode .ldr-diff .neg{font-size:28px}
+.focus-mode .ldr-qhdr{font-size:16px}
+.focus-mode .ldr-qcard{padding:16px 22px;min-width:120px}
+.focus-mode .ldr-qname{font-size:24px}
+.focus-mode .ldr-qpos{font-size:15px}
+.focus-mode .ldr-dupr{font-size:17px;padding:5px 12px}
+.focus-mode .ldr-pname{font-size:22px}
+.focus-mode .ldr-pill{font-size:15px;padding:6px 13px}
+.focus-mode .ldr-sbtn{font-size:17px;min-height:50px;padding:11px 18px}
+.focus-mode .ldr-next{font-size:21px;min-height:62px;padding:16px 30px}
+.focus-mode .ldr-sect{font-size:15px}
+.focus-mode .ldr-match{padding:28px}
+.focus-mode .ldr-queue{padding:22px}
+
+/* ═══════ ACCESS GATE ═══════ */
+.gate{max-width:440px;margin:40px auto;background:var(--sf);border:2px solid var(--b);border-radius:var(--rr);padding:30px 28px;box-shadow:var(--shadow);text-align:center}
+.gate-icon{font-size:44px;margin-bottom:10px}
+.gate-title{font-family:'Fraunces',serif;font-size:24px;font-weight:600;margin-bottom:6px}
+.gate-sub{font-size:14px;color:var(--tx2);margin-bottom:22px;line-height:1.6}
+.gate-field{text-align:left;margin-bottom:14px}
+.gate-label{font-size:12px;color:var(--tx3);text-transform:uppercase;letter-spacing:.07em;font-weight:700;margin-bottom:5px}
+.gate-inp{width:100%;background:var(--sf2);border:2px solid var(--b2);color:var(--tx);padding:13px 14px;border-radius:var(--r);font-family:'DM Sans',sans-serif;font-size:17px;outline:none}
+.gate-inp:focus{border-color:var(--ac);box-shadow:0 0 0 3px var(--acbg)}
+.gate-btn{width:100%;background:var(--c1);border:none;color:#fff;font-family:'DM Sans',sans-serif;font-size:18px;font-weight:700;padding:15px;border-radius:var(--r);cursor:pointer;margin-top:6px;min-height:54px}
+.gate-btn:hover{background:#14486e}
+.gate-err{margin-top:13px;padding:11px;background:#fdecec;border:1.5px solid #f0b8b8;border-radius:var(--r);font-size:14px;color:var(--red);font-weight:600;display:none}
+.gate-note{margin-top:18px;font-size:12px;color:var(--tx3);line-height:1.6}
+.lockbar{display:flex;align-items:center;gap:10px;margin-bottom:16px;padding:10px 14px;background:var(--greenbg);border:1.5px solid var(--greenbdr);border-radius:var(--r);font-size:13px;color:var(--green);font-weight:600}
+.lockbtn{margin-left:auto;background:none;border:1.5px solid var(--b2);color:var(--tx2);padding:7px 14px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;font-family:'DM Sans',sans-serif}
+.lockbtn:hover{background:var(--sf2)}
+
+.ldr-sync{display:flex;align-items:center;gap:11px;flex-wrap:wrap;margin:20px 0;padding:15px 18px;background:rgba(74,222,128,.07);border:2px solid rgba(74,222,128,.3);border-radius:15px}
+.ldr-synclbl{font-size:13px;font-weight:800;color:#7ef0a8;text-transform:uppercase;letter-spacing:.13em}
+.ldr-syncbtn{background:rgba(74,222,128,.12);border:2px solid rgba(74,222,128,.45);color:#7ef0a8;font-family:'DM Sans',sans-serif;font-size:16px;font-weight:700;padding:12px 19px;border-radius:11px;cursor:pointer;min-height:50px;transition:.15s}
+.ldr-syncbtn:hover{background:rgba(74,222,128,.24)}
+.ldr-syncbtn.alt{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.2);color:#cfe6f5}
+.ldr-syncbtn.alt:hover{background:rgba(255,255,255,.14)}
 </style>
 </head>
 <body>
@@ -155,6 +330,12 @@ nav{background:var(--sf);border-bottom:1px solid var(--b);padding:0 20px;display
 
 <!-- ============ A: REGISTRATION ============ -->
 <div id="pgA" class="pg on">
+  <div id="gateA"></div>
+  <div id="secA">
+  <div class="lockbar" id="hostBar" style="display:none">
+    &#128275; Host access unlocked
+    <button class="lockbtn" onclick="lockHost()">&#128274; Lock again</button>
+  </div>
   <div class="stitle">Player Registration</div>
   <div class="ssub">Register players, configure courts and game type, then generate the schedule.</div>
 
@@ -277,6 +458,7 @@ nav{background:var(--sf);border-bottom:1px solid var(--b);padding:0 20px;display
     </div>
   </div>
 </div>
+</div>
 
 <!-- ============ SETS ============ -->
 <div id="pgS1" class="pg">
@@ -321,6 +503,8 @@ nav{background:var(--sf);border-bottom:1px solid var(--b);padding:0 20px;display
     <button class="btn btn-s" onclick="syncPlayers()" style="border-color:var(--green);color:var(--green);font-weight:600">&#128228; Players</button>
     <button class="btn btn-s" onclick="syncRankings()" style="border-color:var(--green);color:var(--green);font-weight:600">&#128228; Rankings</button>
     <button class="btn btn-s" onclick="syncMatches()" style="border-color:var(--green);color:var(--green);font-weight:600">&#128228; Matches</button>
+    <button class="btn btn-s" onclick="syncLadder()" style="border-color:var(--green);color:var(--green);font-weight:600">&#128228; Ladder Scores</button>
+    <button class="btn btn-s" onclick="syncLadderRankings()" style="border-color:var(--green);color:var(--green);font-weight:600">&#128228; Ladder Standings</button>
     <button class="btn btn-s" onclick="syncLuckyDraw()" style="border-color:var(--green);color:var(--green);font-weight:600">&#128228; Lucky Draw</button>
   </div>
   <div id="rankWrap"><div class="empty"><div class="empty-i">&#127942;</div><div class="empty-t">No scores yet</div></div></div>
@@ -328,9 +512,12 @@ nav{background:var(--sf);border-bottom:1px solid var(--b);padding:0 20px;display
 
 <!-- ============ LUCKY DRAW ============ -->
 <div id="pgLD" class="pg">
-  <div class="stitle">&#127873; Lucky Draw</div>
-  <div class="ssub" id="ldSub">Set up prizes in the Registration tab, then draw here.</div>
-  <div id="ldWrap"></div>
+  <div id="gateLD"></div>
+  <div id="secLD">
+    <div class="stitle">&#127873; Lucky Draw</div>
+    <div class="ssub" id="ldSub">Set up prizes in the Registration tab, then draw here.</div>
+    <div id="ldWrap"></div>
+  </div>
 </div>
 
 <div style="text-align:center;padding:16px 20px;font-size:11px;color:var(--tx3);border-top:1px solid var(--b);margin-top:36px;background:var(--sf)">
@@ -351,7 +538,7 @@ var drawResults     = {};
 var drawDone        = false;
 var drawOrder       = [];
 var revealedSet     = new Set();
-var ladderState     = {registry:{}, courts:[], courtRound:{}, scores:{}, playerStatus:{}, recentPartners:{}};
+var ladderState     = {registry:{}, courts:[], courtRound:{}, scores:{}, playerStatus:{}, recentPartners:{}, courtSettings:{}, focusCourt:null};
 
 var NAMES = ['Alex','Alan','Parker','Aaron','Felicia','Kumbo','Jericio','Peter',
   'Rachel','Ben','Clara','David','Emma','Frank','Grace','Henry',
@@ -963,7 +1150,7 @@ function generateLadder(pData, cfg) {
   var sorted = pData.slice().sort(function(a,b){ return getDuprValue(a.dupr) - getDuprValue(b.dupr); });
   var anyIn  = pData.some(function(p){ return p.checkedIn; });
 
-  ladderState = {registry:{}, courts:[], courtRound:{}, scores:{}, playerStatus:{}, recentPartners:{}};
+  ladderState = {registry:{}, courts:[], courtRound:{}, scores:{}, playerStatus:{}, recentPartners:{}, courtSettings:{}, focusCourt:null};
 
   pData.forEach(function(p) {
     ladderState.registry[p.name] = {name:p.name, dupr:p.dupr, globalIdx:p.globalIdx};
@@ -995,6 +1182,25 @@ function generateLadder(pData, cfg) {
   showPg('pgLadder');
 }
 
+// From the first 4 in the queue, choose the pairing that avoids recent partners.
+// Three possible pairings of 4 players: (01)(23), (02)(13), (03)(12).
+function arrangeTeams(f4) {
+  if (f4.length < 4) return f4.slice();
+  var opts = [
+    [f4[0], f4[1], f4[2], f4[3]],
+    [f4[0], f4[2], f4[1], f4[3]],
+    [f4[0], f4[3], f4[1], f4[2]]
+  ];
+  var best = opts[0], bestScore = Infinity;
+  for (var i = 0; i < opts.length; i++) {
+    var o = opts[i];
+    var s = (ladderState.recentPartners[o[0]+'|'+o[1]] || 0) +
+            (ladderState.recentPartners[o[2]+'|'+o[3]] || 0);
+    if (s < bestScore) { bestScore = s; best = o; }
+  }
+  return best;
+}
+
 function ladderActive(ci) {
   var ct = ladderState.courts[ci];
   if (!ct) return [];
@@ -1004,127 +1210,374 @@ function ladderActive(ci) {
 function setPlayerStatus(btn) {
   var name = btn.getAttribute('data-pname');
   var st   = btn.getAttribute('data-status');
-  if (name && st) { ladderState.playerStatus[name] = st; renderLadder(); }
+  if (!name || !st) return;
+  var prev = ladderState.playerStatus[name];
+  ladderState.playerStatus[name] = st;
+
+  // Becoming Active (from Rest or from arriving/waiting) means joining the
+  // BACK of that court's queue - no resuming an old position, no queue-jumping.
+  if (st === 'active' && prev !== 'active') {
+    for (var ci = 0; ci < ladderState.courts.length; ci++) {
+      var ct = ladderState.courts[ci];
+      if (ct.playerNames.indexOf(name) === -1) continue;
+      ct.playerNames = ct.playerNames.filter(function(n){ return n !== name; });
+      ct.playerNames.push(name);
+      break;
+    }
+  }
+  renderLadder();
 }
 
 function renderLadder() {
   var wrap = el('ladderWrap');
   if (!wrap) return;
+  if (!ladderState.courtSettings) ladderState.courtSettings = {};
   if (!ladderState.courts.length) {
-    wrap.innerHTML = '<div class="empty"><div class="empty-t">Generate from Registration tab</div></div>';
+    wrap.innerHTML = '<div class="empty"><div class="empty-t" style="color:#8fb8d4">Generate from Registration tab</div></div>';
     return;
   }
   var cfg = getConfig();
   var maxRound = 1;
   for (var k in ladderState.courtRound) if (ladderState.courtRound[k] > maxRound) maxRound = ladderState.courtRound[k];
 
-  var o = '';
-  o += '<div style="margin-bottom:14px;padding:12px 15px;background:var(--sf);border:1.5px solid var(--b);border-radius:var(--rr);display:flex;gap:16px;align-items:center;flex-wrap:wrap;box-shadow:var(--shadow-sm)">';
-  o += '<div><div style="font-size:11px;color:var(--tx3);text-transform:uppercase;letter-spacing:.07em">Round</div>';
-  o += '<div style="font-family:\'DM Mono\',monospace;font-size:25px;font-weight:700;color:var(--c1)">'+maxRound+'</div></div>';
-  o += '<div style="flex:1;font-size:13px;color:var(--tx2)">Max <strong>'+cfg.maxPts+' pts</strong> &middot; Enter the <strong>losing score</strong> &mdash; winner auto-fills to '+cfg.maxPts+'<br>';
-  o += '<span style="font-size:11px;color:var(--tx3)">Winners move UP a court &uarr; &middot; Losers move DOWN a court &darr;</span></div></div>';
+  var focus = (ladderState.focusCourt === 0 || ladderState.focusCourt) ? ladderState.focusCourt : null;
+  if (focus !== null && !ladderState.courts[focus]) { focus = null; ladderState.focusCourt = null; }
+  var pgEl = el('pgLadder');
+  if (pgEl) { if (focus !== null) pgEl.classList.add('focus-mode'); else pgEl.classList.remove('focus-mode'); }
 
-  o += '<div class="courts-grid">';
+  var o = '';
+  if (focus !== null) {
+    o += '<div class="ldr-focusbar">';
+    o += '<div class="ldr-focustitle">'+ladderState.courts[focus].label+' &middot; Courtside Display</div>';
+    o += '<div class="ldr-cround">Round '+(ladderState.courtRound[focus]||1)+'</div>';
+    o += '<button class="ldr-exitfs" onclick="exitCourtFocus()">&#10005; Back to All Courts</button>';
+    o += '</div>';
+  } else {
+    o += '<div class="ldr-bar">';
+    o += '<div><div class="ldr-rlabel">Round</div><div class="ldr-rnum">'+maxRound+'</div></div>';
+    o += '<div class="ldr-hint">Max <strong>'+cfg.maxPts+' points</strong> &middot; enter the <strong>losing score</strong> and the winner fills in automatically';
+    o += '<span class="sub">Winners move UP one court &uarr; &nbsp; Losers move DOWN one court &darr; &nbsp; Tap &#9974; on a court to use a device courtside</span>';
+    o += '</div></div>';
+  }
+
+  o += '<div class="ldr-courts">';
   for (var ci = 0; ci < ladderState.courts.length; ci++) {
+    if (focus !== null && ci !== focus) continue;
     var ct  = ladderState.courts[ci];
     var all = ct.playerNames;
     var act = ladderActive(ci);
-    var tA  = act.slice(0,2);
-    var tB  = act.slice(2,4);
-    var sit = act.slice(4);
     var cr  = ladderState.courtRound[ci] || 1;
-    var key = 'c'+ci+'r'+cr;
+    var key = 'c' + ci + 'r' + cr;
 
     if (!ladderState.scores[key]) ladderState.scores[key] = {sA:'', sB:''};
-    if (!ladderState.scores[key].tA && tA.length===2 && tB.length===2) {
-      ladderState.scores[key].tA = tA.slice();
-      ladderState.scores[key].tB = tB.slice();
-    }
     var sc = ladderState.scores[key];
-    var sA = sc.sA, sB = sc.sB;
-    var cls = ci % 2 === 0 ? 'c1' : 'c2';
 
-    o += '<div class="court-block">';
-    o += '<div class="court-hdr '+cls+'">';
-    o += '<span class="court-label">'+ct.label+'</span>';
-    o += '<span class="court-players">'+all.length+' players &middot; DUPR '+ct.duprRange+' &middot; R'+cr+'</span>';
-    o += '<button class="btn btn-p btn-s" style="margin-left:auto" data-court="'+ci+'" onclick="ladderNextRound(this)">&#9654; Next Round</button>';
-    o += '</div><div style="padding:11px">';
+    // teams = front 4 of the FIFO queue, fixed per round, split to avoid repeat partners
+    var first4 = act.slice(0, 4);
+    var stored = (sc.tA && sc.tB) ? sc.tA.concat(sc.tB) : null;
+    var sameSet = false;
+    if (stored && stored.length === first4.length) {
+      sameSet = stored.every(function(n){ return first4.indexOf(n) !== -1; }) &&
+                first4.every(function(n){ return stored.indexOf(n) !== -1; });
+    }
+    if (first4.length === 4 && !sameSet) {
+      var arranged = arrangeTeams(first4);
+      sc.tA = arranged.slice(0, 2);
+      sc.tB = arranged.slice(2, 4);
+      var restQ = ct.playerNames.filter(function(n){ return arranged.indexOf(n) === -1; });
+      ct.playerNames = arranged.concat(restQ);
+      all = ct.playerNames;
+      act = ladderActive(ci);
+    } else if (first4.length < 4) {
+      delete sc.tA; delete sc.tB;
+    }
+    var tA  = (sc.tA || []).slice();
+    var tB  = (sc.tB || []).slice();
+    var sit = act.slice(4);
+    var sA  = sc.sA, sB = sc.sB;
+    var playing = tA.concat(tB);
+    var sOpen = !!ladderState.courtSettings[ci];
 
-    // roster
-    o += '<div style="margin-bottom:9px">';
+    // ───── header ─────
+    o += '<div class="ldr-court">';
+    o += '<div class="ldr-chdr">';
+    o += '<span class="ldr-cname">'+ct.label+'</span>';
+    o += '<span class="ldr-cround">R'+cr+'</span>';
+    o += '<span class="ldr-cmeta">'+all.length+' players &middot; DUPR '+ct.duprRange+'</span>';
+    o += '<button class="ldr-fs" data-court="'+ci+'" onclick="toggleCourtFocus(this)" title="Show only this court (courtside display)">&#9974;</button>';
+    o += '<button class="ldr-gear'+(sOpen?' open':'')+'" data-court="'+ci+'" onclick="toggleCourtSettings(this)" title="Court settings">&#9881;</button>';
+    o += '<button class="ldr-next" data-court="'+ci+'" onclick="ladderNextRound(this)">Next Round &#9654;</button>';
+    o += '</div>';
+    o += '<div class="ldr-body">';
+
+    // ───── 1. LIVE MATCH ─────
+    if (tA.length === 2 && tB.length === 2) {
+      var rA0 = ladderState.registry[tA[0]]||{dupr:''}, rA1 = ladderState.registry[tA[1]]||{dupr:''};
+      var rB0 = ladderState.registry[tB[0]]||{dupr:''}, rB1 = ladderState.registry[tB[1]]||{dupr:''};
+
+      o += '<div class="ldr-match" style="margin-top:0">';
+      o += '<div class="ldr-mtitle">&#127992; Round '+cr+' &middot; Live Match</div>';
+      o += '<div class="ldr-team"><div class="ldr-tinfo"><div class="ldr-tlabel">TEAM A</div>';
+      o += '<div class="ldr-player">'+tA[0]+' <span class="ldr-dupr">'+(rA0.dupr||'NR')+'</span></div>';
+      o += '<div class="ldr-player">'+tA[1]+' <span class="ldr-dupr">'+(rA1.dupr||'NR')+'</span></div>';
+      o += '</div><input class="ldr-sinp" type="text" inputmode="numeric" pattern="[0-9]*" readonly placeholder="0" value="'+sA+'" data-key="'+key+'" data-side="a" data-team="'+tA.join(' &amp; ')+'" onclick="openScorePicker(this)" onwheel="wheelScore(event,this)" ontouchstart="touchScoreStart(event,this)" ontouchmove="touchScoreMove(event,this)"></div>';
+      o += '<div class="ldr-vs">VS</div>';
+      o += '<div class="ldr-team"><div class="ldr-tinfo"><div class="ldr-tlabel">TEAM B</div>';
+      o += '<div class="ldr-player">'+tB[0]+' <span class="ldr-dupr">'+(rB0.dupr||'NR')+'</span></div>';
+      o += '<div class="ldr-player">'+tB[1]+' <span class="ldr-dupr">'+(rB1.dupr||'NR')+'</span></div>';
+      o += '</div><input class="ldr-sinp" type="text" inputmode="numeric" pattern="[0-9]*" readonly placeholder="0" value="'+sB+'" data-key="'+key+'" data-side="b" data-team="'+tB.join(' &amp; ')+'" onclick="openScorePicker(this)" onwheel="wheelScore(event,this)" ontouchstart="touchScoreStart(event,this)" ontouchmove="touchScoreMove(event,this)"></div>';
+
+      o += '<div class="ldr-diff" id="d_'+key+'" style="';
+      if (sA !== '' && sB !== '') {
+        var vA = parseFloat(sA), vB = parseFloat(sB), dA = vA-vB, dB = vB-vA;
+        o += 'display:block">';
+        o += '<span class="'+(dA>=0?'pos':'neg')+'">'+(dA>=0?'+':'')+dA+'</span> <span class="lbl">Team A</span>';
+        o += ' &nbsp;&nbsp;|&nbsp;&nbsp; ';
+        o += '<span class="'+(dB>=0?'pos':'neg')+'">'+(dB>=0?'+':'')+dB+'</span> <span class="lbl">Team B</span>';
+      } else o += 'display:none">';
+      o += '</div></div>';
+    } else {
+      o += '<div class="ldr-warn" style="margin-top:0">&#9888; Need 4 active players to start &mdash; currently '+act.length+'</div>';
+    }
+
+    // ───── 2. NEXT UP QUEUE ─────
+    o += '<div class="ldr-queue"><div class="ldr-qhdr">&#9197; Next Up Queue</div>';
+    if (sit.length) {
+      o += '<div class="ldr-qlist">';
+      for (var si = 0; si < sit.length; si++) {
+        var sn = sit[si], sr = ladderState.registry[sn]||{dupr:''};
+        o += '<div class="ldr-qcard"><div class="ldr-qpos">#'+(si+1)+'</div><div class="ldr-qname">'+sn+'</div>';
+        o += '<span class="ldr-dupr" style="font-size:12px">'+(sr.dupr||'NR')+'</span></div>';
+      }
+      o += '</div>';
+    } else {
+      o += '<div style="font-size:15px;color:#8fb8d4">Nobody waiting &mdash; all active players are on court.</div>';
+    }
+    o += '</div>';
+
+    // ───── 3. COURT ROSTER ─────
+    o += '<div class="ldr-roster">';
+    o += '<div class="ldr-sect">Court Roster &mdash; tap to change status or move court</div>';
     for (var pi = 0; pi < all.length; pi++) {
       var nm   = all[pi];
       var reg  = ladderState.registry[nm] || {dupr:''};
       var st   = ladderState.playerStatus[nm] || 'active';
-      var b    = getDuprBand(reg.dupr, cfg);
-      var col  = st==='active' ? 'var(--green)' : st==='resting' ? 'var(--orange)' : 'var(--tx3)';
-      var ico  = st==='active' ? '&#9679;' : st==='resting' ? '&#9855;' : '&#9203;';
       var safe = nm.replace(/"/g, '&quot;');
-      o += '<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid var(--b);flex-wrap:wrap">';
-      o += '<span style="color:'+col+';font-size:11px;min-width:13px">'+ico+'</span>';
-      o += '<span class="dupr-badge '+b.css+'">'+(reg.dupr||'NR')+'</span>';
-      o += '<span style="font-weight:500;flex:1;font-size:13px">'+nm+'</span>';
-      if (st === 'waiting') o += '<span style="font-size:10px;color:var(--tx3);padding:2px 6px;background:var(--sf2);border-radius:4px">&#9203; arriving</span>';
-      if (st !== 'active')  o += '<button data-pname="'+safe+'" data-status="active" onclick="setPlayerStatus(this)" style="font-size:11px;padding:2px 8px;border:1.5px solid var(--green);color:var(--green);background:none;border-radius:5px;cursor:pointer;font-weight:600">&#9654; Active</button>';
-      if (st !== 'resting') o += '<button data-pname="'+safe+'" data-status="resting" onclick="setPlayerStatus(this)" style="font-size:11px;padding:2px 8px;border:1.5px solid var(--orange);color:var(--orange);background:none;border-radius:5px;cursor:pointer;font-weight:600">&#9855; Rest</button>';
+      var isPlaying = playing.indexOf(nm) !== -1;
+      var qPos = sit.indexOf(nm);
+
+      var rowCls = 'ldr-prow' + (isPlaying ? ' on-court' : '') + (st === 'resting' ? ' resting' : '');
+      var dot = st === 'active' ? '<span class="ldr-dot" style="color:#4ade80">&#9679;</span>'
+              : st === 'resting' ? '<span class="ldr-dot" style="color:#ffb74d">&#9855;</span>'
+              : '<span class="ldr-dot" style="color:#8fb8d4">&#9203;</span>';
+
+      o += '<div class="'+rowCls+'">';
+      o += dot;
+      o += '<span class="ldr-dupr">'+(reg.dupr||'NR')+'</span>';
+      o += '<span class="ldr-pname">'+nm+'</span>';
+      if (isPlaying)             o += '<span class="ldr-pill playing">ON COURT</span>';
+      else if (st === 'active')  o += '<span class="ldr-pill queue">QUEUE #'+(qPos+1)+'</span>';
+      else if (st === 'waiting') o += '<span class="ldr-pill wait">ARRIVING</span>';
+      else                       o += '<span class="ldr-pill wait">RESTING</span>';
+      if (st !== 'active')  o += '<button class="ldr-sbtn go"   data-pname="'+safe+'" data-status="active"  onclick="setPlayerStatus(this)">&#9654; Active</button>';
+      if (st !== 'resting') o += '<button class="ldr-sbtn rest" data-pname="'+safe+'" data-status="resting" onclick="setPlayerStatus(this)">&#9855; Rest</button>';
       o += '</div>';
     }
     o += '</div>';
 
-    // match card
-    if (tA.length === 2 && tB.length === 2) {
-      var rA0 = ladderState.registry[tA[0]]||{dupr:''}, rA1 = ladderState.registry[tA[1]]||{dupr:''};
-      var rB0 = ladderState.registry[tB[0]]||{dupr:''}, rB1 = ladderState.registry[tB[1]]||{dupr:''};
-      var bA0 = getDuprBand(rA0.dupr,cfg), bA1 = getDuprBand(rA1.dupr,cfg);
-      var bB0 = getDuprBand(rB0.dupr,cfg), bB1 = getDuprBand(rB1.dupr,cfg);
-
-      o += '<div style="background:var(--c1bg);border:2px solid var(--c1bdr);border-radius:var(--rr);padding:13px">';
-      o += '<div style="font-size:11px;font-weight:700;color:var(--c1);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">&#127992; Round '+cr+' Match</div>';
-      o += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:5px"><div style="flex:1">';
-      o += '<div style="font-size:11px;color:var(--tx3);font-weight:600;margin-bottom:2px">TEAM A</div>';
-      o += '<div style="font-size:15px;font-weight:700">'+tA[0]+' <span class="dupr-badge '+bA0.css+'" style="font-size:10px">'+(rA0.dupr||'NR')+'</span></div>';
-      o += '<div style="font-size:15px;font-weight:700">'+tA[1]+' <span class="dupr-badge '+bA1.css+'" style="font-size:10px">'+(rA1.dupr||'NR')+'</span></div>';
-      o += '</div><input type="number" min="0" max="'+cfg.maxPts+'" placeholder="0" value="'+sA+'" data-key="'+key+'" data-side="a" oninput="ladderScore(this)" style="width:66px;font-size:21px;font-weight:700;padding:7px;text-align:center;border:2px solid var(--b2);border-radius:8px;background:var(--sf);color:var(--tx);outline:none"></div>';
-      o += '<div style="text-align:center;font-size:14px;font-weight:700;color:var(--tx3);margin:3px 0">VS</div>';
-      o += '<div style="display:flex;align-items:center;gap:10px;margin-top:5px"><div style="flex:1">';
-      o += '<div style="font-size:11px;color:var(--tx3);font-weight:600;margin-bottom:2px">TEAM B</div>';
-      o += '<div style="font-size:15px;font-weight:700">'+tB[0]+' <span class="dupr-badge '+bB0.css+'" style="font-size:10px">'+(rB0.dupr||'NR')+'</span></div>';
-      o += '<div style="font-size:15px;font-weight:700">'+tB[1]+' <span class="dupr-badge '+bB1.css+'" style="font-size:10px">'+(rB1.dupr||'NR')+'</span></div>';
-      o += '</div><input type="number" min="0" max="'+cfg.maxPts+'" placeholder="0" value="'+sB+'" data-key="'+key+'" data-side="b" oninput="ladderScore(this)" style="width:66px;font-size:21px;font-weight:700;padding:7px;text-align:center;border:2px solid var(--b2);border-radius:8px;background:var(--sf);color:var(--tx);outline:none"></div>';
-
-      o += '<div id="d_'+key+'" style="margin-top:9px;padding:7px 9px;background:rgba(0,0,0,.04);border-radius:6px;font-size:13px;';
-      if (sA !== '' && sB !== '') {
-        var vA = parseFloat(sA), vB = parseFloat(sB), dA = vA-vB, dB = vB-vA;
-        o += 'display:block">';
-        o += '<span style="color:'+(dA>=0?'var(--green)':'var(--red)')+';font-weight:700">'+(dA>=0?'+':'')+dA+'</span>';
-        o += '<span style="color:var(--tx3);font-size:11px"> pts Team A &nbsp;|&nbsp; </span>';
-        o += '<span style="color:'+(dB>=0?'var(--green)':'var(--red)')+';font-weight:700">'+(dB>=0?'+':'')+dB+'</span>';
-        o += '<span style="color:var(--tx3);font-size:11px"> pts Team B</span>';
-      } else o += 'display:none">';
-      o += '</div></div>';
-
-      if (sit.length) {
-        o += '<div style="margin-top:9px;padding:9px 11px;background:var(--sf2);border:1.5px solid var(--b);border-radius:var(--r)">';
-        o += '<div style="font-size:11px;font-weight:700;color:var(--tx2);text-transform:uppercase;margin-bottom:5px">&#9197; Next Up</div>';
-        o += '<div style="display:flex;gap:6px;flex-wrap:wrap">';
-        for (var si = 0; si < sit.length; si++) {
-          var sn = sit[si], sr = ladderState.registry[sn]||{dupr:''}, sb = getDuprBand(sr.dupr,cfg);
-          o += '<div style="background:var(--sf);border:1.5px solid var(--b2);border-radius:8px;padding:5px 9px;text-align:center">';
-          o += '<div style="font-size:13px;font-weight:600">'+sn+'</div>';
-          o += '<span class="dupr-badge '+sb.css+'" style="font-size:10px">'+(sr.dupr||'NR')+'</span></div>';
+    // ───── 4. SETTINGS DRAWER (gear) ─────
+    if (sOpen) {
+      o += '<div class="ldr-panel">';
+      o += '<div class="ldr-phdr">&#9881; Court Settings &mdash; Move Player</div>';
+      o += '<div class="ldr-pnote">Pick a destination court for any player. They join the back of that court\'s queue.</div>';
+      if (!all.length) o += '<div style="font-size:15px;color:#8fb8d4">No players on this court.</div>';
+      for (var mi = 0; mi < all.length; mi++) {
+        var mn    = all[mi];
+        var mreg  = ladderState.registry[mn] || {dupr:''};
+        var msafe = mn.replace(/"/g, '&quot;');
+        o += '<div class="ldr-mrow">';
+        o += '<span class="ldr-dupr">'+(mreg.dupr||'NR')+'</span>';
+        o += '<span class="ldr-mname">'+mn+'</span>';
+        o += '<select class="ldr-move" data-pname="'+msafe+'" onchange="movePlayerCourt(this)">';
+        o += '<option value="">Move to&hellip;</option>';
+        for (var mc = 0; mc < ladderState.courts.length; mc++) {
+          if (mc === ci) continue;
+          o += '<option value="'+mc+'">&rarr; Court '+(mc+1)+'</option>';
         }
-        o += '</div></div>';
+        o += '</select></div>';
       }
-    } else {
-      o += '<div style="padding:10px;background:var(--goldbg);border:1.5px solid var(--goldbdr);border-radius:var(--r);font-size:13px;color:var(--gold)">&#9888; Need 4 active players. Active: '+act.length+'</div>';
+      o += '</div>';
     }
+
     o += '</div></div>';
   }
   o += '</div>';
-  o += ladderRankings();
+  if (focus === null) {
+    o += '<div class="ldr-sync">';
+    o += '<span class="ldr-synclbl">&#128228; Google Sheets</span>';
+    o += '<button class="ldr-syncbtn" onclick="syncLadder()">Sync Ladder Scores</button>';
+    o += '<button class="ldr-syncbtn" onclick="syncLadderRankings()">Sync Ladder Standings</button>';
+    o += '<button class="ldr-syncbtn alt" onclick="syncPlayers()">Sync Players</button>';
+    o += '<button class="ldr-syncbtn alt" onclick="testConnection()">Test Connection</button>';
+    o += '</div>';
+    o += ladderRankings();
+  }
   wrap.innerHTML = o;
+}
+
+// ═════════════════════════════════════════════════════════════════
+// COURTSIDE FULLSCREEN — show one court only, scaled up.
+// Also asks the browser for real fullscreen so a tablet acts as a kiosk.
+// ═════════════════════════════════════════════════════════════════
+function toggleCourtFocus(btn) {
+  var ci = parseInt(btn.getAttribute('data-court'));
+  if (isNaN(ci)) return;
+  ladderState.focusCourt = (ladderState.focusCourt === ci) ? null : ci;
+  if (ladderState.focusCourt !== null) requestKiosk();
+  renderLadder();
+  window.scrollTo(0, 0);
+}
+
+function exitCourtFocus() {
+  ladderState.focusCourt = null;
+  leaveKiosk();
+  renderLadder();
+}
+
+function requestKiosk() {
+  var d = document.documentElement;
+  try {
+    if (d.requestFullscreen)            d.requestFullscreen();
+    else if (d.webkitRequestFullscreen) d.webkitRequestFullscreen();
+    else if (d.msRequestFullscreen)     d.msRequestFullscreen();
+  } catch (e) { /* fullscreen may be blocked - focus view still works */ }
+}
+
+function leaveKiosk() {
+  try {
+    if (document.exitFullscreen && document.fullscreenElement)            document.exitFullscreen();
+    else if (document.webkitExitFullscreen && document.webkitFullscreenElement) document.webkitExitFullscreen();
+  } catch (e) {}
+}
+
+// ═════════════════════════════════════════════════════════════════
+// ACCESS GATE for Registration and Lucky Draw
+//
+// NOTE: this runs in the browser, so it is a DETERRENT, not real security.
+// Anyone who opens "View Source" can read this check. It stops a guest
+// casually tapping into your setup screens on a shared courtside device.
+// For genuine protection the app would need a server-side login.
+//
+// To change the credentials: replace ADMIN_USERS below. Generate a new hash
+// by opening the browser console on this page and running:
+//     credHash('yourname:yourpassword')
+// then paste the result in as the value.
+// ═════════════════════════════════════════════════════════════════
+var ADMIN_USERS = {
+  'ba749901': 1,   // host  / pickle2026
+  '60ea256e': 1    // admin / pickle2026
+};
+var isAuthed = false;
+
+function credHash(s) {
+  var h = 5381;
+  for (var i = 0; i < s.length; i++) h = (((h * 33) ^ s.charCodeAt(i)) & 0xFFFFFFFF) >>> 0;
+  return h.toString(16);
+}
+
+function gateMarkup(which) {
+  var o = '';
+  o += '<div class="gate">';
+  o += '<div class="gate-icon">&#128274;</div>';
+  o += '<div class="gate-title">Host Access Required</div>';
+  o += '<div class="gate-sub">' + (which === 'A'
+        ? 'Player registration, tournament settings and prize setup are host-only.'
+        : 'The lucky draw is host-only.') + '</div>';
+  o += '<div class="gate-field"><div class="gate-label">Admin ID</div>';
+  o += '<input class="gate-inp" id="gu'+which+'" autocomplete="off" placeholder="host" onkeydown="gateKey(event,\''+which+'\')"></div>';
+  o += '<div class="gate-field"><div class="gate-label">Password</div>';
+  o += '<input class="gate-inp" id="gp'+which+'" type="password" autocomplete="off" placeholder="\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022" onkeydown="gateKey(event,\''+which+'\')"></div>';
+  o += '<button class="gate-btn" onclick="doUnlock(\''+which+'\')">Unlock</button>';
+  o += '<div class="gate-err" id="ge'+which+'">Incorrect ID or password</div>';
+  o += '<div class="gate-note">Scoring tabs (Sets, DUPR, Ladder, Rankings) stay open so players can enter results on courtside devices.</div>';
+  o += '</div>';
+  return o;
+}
+
+function gateKey(e, which) {
+  if (e.key === 'Enter') doUnlock(which);
+}
+
+function doUnlock(which) {
+  var u = el('gu'+which) ? el('gu'+which).value.trim().toLowerCase() : '';
+  var p = el('gp'+which) ? el('gp'+which).value : '';
+  var err = el('ge'+which);
+  if (ADMIN_USERS[credHash(u + ':' + p)]) {
+    isAuthed = true;
+    applyGates();
+    if (which === 'LD') renderLuckyDraw();
+  } else {
+    if (err) err.style.display = 'block';
+    if (el('gp'+which)) el('gp'+which).value = '';
+  }
+}
+
+function lockHost() {
+  isAuthed = false;
+  applyGates();
+  showPg('pgLadder');
+}
+
+function applyGates() {
+  var pairs = [['A','gateA','secA'], ['LD','gateLD','secLD']];
+  for (var i = 0; i < pairs.length; i++) {
+    var which = pairs[i][0], g = el(pairs[i][1]), s = el(pairs[i][2]);
+    if (!g || !s) continue;
+    if (isAuthed) {
+      g.innerHTML = '';
+      s.style.display = 'block';
+    } else {
+      g.innerHTML = gateMarkup(which);
+      s.style.display = 'none';
+    }
+  }
+  var bar = el('hostBar');
+  if (bar) bar.style.display = isAuthed ? 'flex' : 'none';
+}
+
+function toggleCourtSettings(btn) {
+  var ci = parseInt(btn.getAttribute('data-court'));
+  if (isNaN(ci)) return;
+  if (!ladderState.courtSettings) ladderState.courtSettings = {};
+  ladderState.courtSettings[ci] = !ladderState.courtSettings[ci];
+  renderLadder();
+}
+
+// Host moves a player to a different court. The player joins the BACK of the
+// destination court's queue (FIFO), same as any other arrival.
+function movePlayerCourt(sel) {
+  var name = sel.getAttribute('data-pname');
+  var dest = sel.value;
+  sel.value = '';
+  if (!name || dest === '') return;
+  var di = parseInt(dest);
+  if (isNaN(di) || !ladderState.courts[di]) return;
+
+  for (var ci = 0; ci < ladderState.courts.length; ci++) {
+    ladderState.courts[ci].playerNames =
+      ladderState.courts[ci].playerNames.filter(function(n){ return n !== name; });
+  }
+  ladderState.courts[di].playerNames.push(name);
+
+  // clear any unscored team record that referenced this player so teams re-form
+  for (var kk in ladderState.scores) {
+    var s = ladderState.scores[kk];
+    if (!s || s.sA !== '' || s.sB !== '') continue;
+    if ((s.tA && s.tA.indexOf(name) !== -1) || (s.tB && s.tB.indexOf(name) !== -1)) {
+      delete s.tA; delete s.tB;
+    }
+  }
+  renderLadder();
 }
 
 function ladderScore(inp) {
@@ -1165,19 +1618,132 @@ function ladderScore(inp) {
   }
 }
 
+// ═════════════════════════════════════════════════════════════════
+// TOUCH SCORE ENTRY
+//  - tap the box  -> big number pad, 0 .. Max Points only
+//  - swipe up/down on the box -> adjust by 1 (touch devices)
+//  - mouse wheel over the box -> adjust by 1 (desktop)
+// The pad is capped at Max Points so an out-of-range score cannot be entered.
+// ═════════════════════════════════════════════════════════════════
+var spTarget = null;
+var spTouchY = null;
+var spTouchStartVal = 0;
+
+function openScorePicker(inp) {
+  spTarget = inp;
+  var cfg  = getConfig();
+  var max  = cfg.maxPts;
+  var cur  = inp.value === '' ? null : parseInt(inp.value);
+  var team = inp.getAttribute('data-team') || '';
+  var side = inp.getAttribute('data-side') === 'a' ? 'Team A' : 'Team B';
+
+  var o = '';
+  o += '<div class="sp-veil" id="spVeil" onclick="scorePickerVeil(event)">';
+  o += '<div class="sp-box" onclick="event.stopPropagation()">';
+  o += '<div class="sp-title">Enter Score</div>';
+  o += '<div class="sp-sub">'+side+' &middot; max '+max+' points</div>';
+  o += '<div class="sp-team">'+team+'</div>';
+  o += '<div class="sp-grid">';
+  for (var v = 0; v <= max; v++) {
+    var cls = 'sp-num';
+    if (v === max)            cls += ' win';
+    if (cur !== null && v === cur) cls += ' sel';
+    o += '<button class="'+cls+'" data-val="'+v+'" onclick="pickScore(this)">'+v+'</button>';
+  }
+  o += '</div>';
+  o += '<div class="sp-acts">';
+  o += '<button class="sp-btn clear" onclick="pickScoreClear()">Clear</button>';
+  o += '<button class="sp-btn close" onclick="closeScorePicker()">Close</button>';
+  o += '</div></div></div>';
+
+  var host = document.createElement('div');
+  host.id = 'spHost';
+  host.innerHTML = o;
+  document.body.appendChild(host);
+}
+
+function scorePickerVeil(e) {
+  if (e.target && e.target.id === 'spVeil') closeScorePicker();
+}
+
+function closeScorePicker() {
+  var h = el('spHost');
+  if (h) h.parentNode.removeChild(h);
+  spTarget = null;
+}
+
+function pickScore(btn) {
+  var v = btn.getAttribute('data-val');
+  if (spTarget) applyScore(spTarget, v);
+  closeScorePicker();
+  renderLadder();
+}
+
+function pickScoreClear() {
+  if (spTarget) applyScore(spTarget, '');
+  closeScorePicker();
+  renderLadder();
+}
+
+// Shared writer: clamps to 0..maxPts and reuses the auto-fill rules
+function applyScore(inp, val) {
+  var cfg = getConfig();
+  if (val === '') {
+    inp.value = '';
+  } else {
+    var n = parseInt(val);
+    if (isNaN(n)) n = 0;
+    if (n < 0) n = 0;
+    if (n > cfg.maxPts) n = cfg.maxPts;
+    inp.value = String(n);
+  }
+  ladderScore(inp);
+}
+
+function wheelScore(e, inp) {
+  e.preventDefault();
+  var cfg = getConfig();
+  var cur = inp.value === '' ? 0 : parseInt(inp.value);
+  if (isNaN(cur)) cur = 0;
+  cur += (e.deltaY < 0 ? 1 : -1);
+  if (cur < 0) cur = 0;
+  if (cur > cfg.maxPts) cur = cfg.maxPts;
+  applyScore(inp, cur);
+}
+
+function touchScoreStart(e, inp) {
+  if (!e.touches || !e.touches.length) return;
+  spTouchY = e.touches[0].clientY;
+  var c = inp.value === '' ? 0 : parseInt(inp.value);
+  spTouchStartVal = isNaN(c) ? 0 : c;
+}
+
+function touchScoreMove(e, inp) {
+  if (spTouchY === null || !e.touches || !e.touches.length) return;
+  var dy = spTouchY - e.touches[0].clientY;   // swipe up = increase
+  if (Math.abs(dy) < 10) return;
+  e.preventDefault();
+  var cfg  = getConfig();
+  var step = Math.round(dy / 14);
+  var v    = spTouchStartVal + step;
+  if (v < 0) v = 0;
+  if (v > cfg.maxPts) v = cfg.maxPts;
+  if (String(v) !== inp.value) applyScore(inp, v);
+}
+
 function ladderNextRound(btn) {
   var ci  = parseInt(btn.getAttribute('data-court'));
   var ct  = ladderState.courts[ci];
   var cr  = ladderState.courtRound[ci] || 1;
-  var key = 'c'+ci+'r'+cr;
+  var key = 'c' + ci + 'r' + cr;
   var sc  = ladderState.scores[key];
 
   if (!sc || sc.sA === '' || sc.sB === '') {
     alert('Enter scores for ' + ct.label + ' (Round ' + cr + ') first.');
     return;
   }
-  var tA = sc.tA || [], tB = sc.tB || [];
-  if (tA.length < 2 || tB.length < 2) { alert('Team data missing — regenerate the ladder.'); return; }
+  var tA = (sc.tA || []).slice(), tB = (sc.tB || []).slice();
+  if (tA.length < 2 || tB.length < 2) { alert('Team data missing - regenerate the ladder.'); return; }
 
   var vA = parseFloat(sc.sA), vB = parseFloat(sc.sB);
   var winners = vA >= vB ? tA.slice() : tB.slice();
@@ -1185,47 +1751,41 @@ function ladderNextRound(btn) {
   sc.court = ct.label;
 
   var last  = ladderState.courts.length - 1;
-  var upIdx = Math.min(last, ci + 1);
-  var dnIdx = Math.max(0, ci - 1);
+  var upIdx = Math.min(last, ci + 1);   // winners go UP (harder court)
+  var dnIdx = Math.max(0,    ci - 1);   // losers  go DOWN (easier court)
 
-  // record partners (for shuffle avoidance)
+  // remember this round's partnerships so the split avoids repeats
   [tA, tB].forEach(function(tm) {
     if (tm.length >= 2) {
-      ladderState.recentPartners[tm[0]+'|'+tm[1]] = 2;
-      ladderState.recentPartners[tm[1]+'|'+tm[0]] = 2;
+      ladderState.recentPartners[tm[0] + '|' + tm[1]] = 2;
+      ladderState.recentPartners[tm[1] + '|' + tm[0]] = 2;
     }
   });
 
-  // remove the 4 who played from this court
-  tA.concat(tB).forEach(function(nm) {
-    ct.playerNames = ct.playerNames.filter(function(x){ return x !== nm; });
-  });
+  // remove the four who just played from this court
+  var played = tA.concat(tB);
+  ct.playerNames = ct.playerNames.filter(function(n) { return played.indexOf(n) === -1; });
 
-  // winners up
-  var upCt = ladderState.courts[upIdx];
-  winners.forEach(function(nm) {
-    upCt.playerNames = upCt.playerNames.filter(function(x){ return x !== nm; });
-    upCt.playerNames.push(nm);
-  });
-  // losers down
-  var dnCt = ladderState.courts[dnIdx];
-  losers.forEach(function(nm) {
-    dnCt.playerNames = dnCt.playerNames.filter(function(x){ return x !== nm; });
-    dnCt.playerNames.push(nm);
-  });
+  // Players moving between courts join the BACK of the queue (pure FIFO).
+  // Whoever was already waiting keeps their place in line.
+  // The actual team split happens when the next match is formed (arrangeTeams),
+  // so an arriving pair is never forced to partner each other.
+  var placePair = function(destIdx, pair) {
+    var dest = ladderState.courts[destIdx];
+    var kept = dest.playerNames.filter(function(n) { return pair.indexOf(n) === -1; });
+    dest.playerNames = kept.concat(pair);
+  };
 
-  // decay partner memory
+  // winners move up first, then losers move down
+  placePair(upIdx, winners);
+  placePair(dnIdx, losers);
+
+  // decay partner memory so old pairings stop blocking after a round or two
   for (var pk2 in ladderState.recentPartners) {
     ladderState.recentPartners[pk2] -= 1;
     if (ladderState.recentPartners[pk2] <= 0) delete ladderState.recentPartners[pk2];
   }
 
-  // reshuffle every court to mix partners
-  ladderState.courts.forEach(function(c2) {
-    var actives = c2.playerNames.filter(function(n){ return ladderState.playerStatus[n] === 'active'; });
-    var others  = c2.playerNames.filter(function(n){ return ladderState.playerStatus[n] !== 'active'; });
-    c2.playerNames = smartShuffle(actives).concat(others);
-  });
 
   ladderState.courtRound[ci] = cr + 1;
   renderLadder();
@@ -1304,7 +1864,7 @@ function ladderRankings() {
   for (var r = 1; r <= maxR; r++) rcols.push(r);
 
   var o = '<div class="rank-section" style="margin-top:22px">';
-  o += '<div class="rank-title">Ladder Rankings &mdash; '+rows.length+' players</div>';
+  o += '<div class="rank-title">&#128202; Ladder Rankings &mdash; '+rows.length+' players</div>';
   o += '<div style="overflow-x:auto"><table class="tbl"><thead><tr>';
   o += '<th rowspan="2">#</th><th rowspan="2" class="L">Player</th><th rowspan="2">DUPR</th>';
   o += '<th rowspan="2">P</th><th rowspan="2">W</th><th rowspan="2">L</th>';
@@ -1330,7 +1890,7 @@ function ladderRankings() {
     });
     o += '<td class="mono" style="color:'+col+';font-weight:700">'+(rw.pts>0?'+':'')+rw.pts+'</td>';
     if (rw.hist.length) {
-      o += '<td style="text-align:center"><button id="b'+rid+'" onclick="toggleHist(\''+rid+'\')" style="background:none;border:1.5px solid var(--b2);color:var(--tx2);border-radius:5px;padding:1px 6px;cursor:pointer;font-size:12px">&#9660;</button></td>';
+      o += '<td style="text-align:center"><button class="ldr-exp" id="b'+rid+'" onclick="toggleHist(\''+rid+'\')">&#9660;</button></td>';
     } else o += '<td></td>';
     o += '</tr>';
 
@@ -1724,6 +2284,80 @@ function syncMatches() {
     .then(function(ok){ toast(ok ? rows.length+' matches synced' : 'Sync sent (check sheet)', true); });
 }
 
+// Ladder match log: every scored round, with point difference and winner
+function syncLadder() {
+  var m = getMeta();
+  var rows = [];
+  for (var key in ladderState.scores) {
+    var sc = ladderState.scores[key];
+    if (!sc || !sc.tA || !sc.tB || sc.sA === '' || sc.sB === '') continue;
+    var mm = key.match(/c(\d+)r(\d+)/);
+    if (!mm) continue;
+    var cN = parseInt(mm[1]) + 1, rN = parseInt(mm[2]);
+    var vA = parseFloat(sc.sA), vB = parseFloat(sc.sB);
+    if (isNaN(vA) || isNaN(vB)) continue;
+    var dA = vA - vB, dB = vB - vA;
+    var win = dA >= 0 ? sc.tA.join(' & ') : sc.tB.join(' & ');
+    rows.push([m.date, m.session, m.notes || '\u2014', 'Court ' + cN, rN,
+               sc.tA.join(' & '), vA, vB, sc.tB.join(' & '),
+               (dA >= 0 ? '+' : '') + dA, (dB >= 0 ? '+' : '') + dB, win]);
+  }
+  rows.sort(function(a, b) { return a[4] - b[4] || String(a[3]).localeCompare(String(b[3])); });
+  if (!rows.length) { toast('No ladder scores to sync yet', false); return; }
+  pushSheets('ladder', {rows:rows, date:m.date, session:m.session, notes:m.notes})
+    .then(function(ok){ toast(ok ? rows.length + ' ladder matches synced' : 'Sync sent (check sheet)', true); });
+}
+
+// Per-player ladder standings, including round-by-round points
+function syncLadderRankings() {
+  var m = getMeta();
+  var tot = {}, maxR = 0;
+  for (var nm in ladderState.registry) {
+    tot[nm] = {n:nm, dupr:ladderState.registry[nm].dupr || '', p:0, w:0, l:0, pts:0, byR:{}};
+  }
+  for (var key in ladderState.scores) {
+    var sc = ladderState.scores[key];
+    if (!sc || !sc.tA || !sc.tB || sc.sA === '' || sc.sB === '') continue;
+    var mm = key.match(/c(\d+)r(\d+)/);
+    if (!mm) continue;
+    var rN = parseInt(mm[2]);
+    if (rN > maxR) maxR = rN;
+    var vA = parseFloat(sc.sA), vB = parseFloat(sc.sB);
+    if (isNaN(vA) || isNaN(vB)) continue;
+    var dA = vA - vB, dB = vB - vA;
+    sc.tA.forEach(function(n2) {
+      if (!tot[n2]) tot[n2] = {n:n2, dupr:'', p:0, w:0, l:0, pts:0, byR:{}};
+      tot[n2].p++; tot[n2].pts += dA;
+      if (dA >= 0) tot[n2].w++; else tot[n2].l++;
+      tot[n2].byR[rN] = (tot[n2].byR[rN] || 0) + dA;
+    });
+    sc.tB.forEach(function(n3) {
+      if (!tot[n3]) tot[n3] = {n:n3, dupr:'', p:0, w:0, l:0, pts:0, byR:{}};
+      tot[n3].p++; tot[n3].pts += dB;
+      if (dB >= 0) tot[n3].w++; else tot[n3].l++;
+      tot[n3].byR[rN] = (tot[n3].byR[rN] || 0) + dB;
+    });
+  }
+  var arr = [];
+  for (var kk in tot) arr.push(tot[kk]);
+  arr = arr.filter(function(r){ return r.p > 0; })
+           .sort(function(a, b){ return b.pts - a.pts || b.w - a.w; });
+  if (!arr.length) { toast('No ladder scores to sync yet', false); return; }
+
+  var hdr = ['Date','Session','Notes','Rank','Player','DUPR','Played','Won','Lost'];
+  for (var r = 1; r <= maxR; r++) hdr.push('R' + r);
+  hdr.push('Total Pts');
+
+  var rows = arr.map(function(r2, i) {
+    var row = [m.date, m.session, m.notes || '\u2014', i + 1, r2.n, r2.dupr || 'NR', r2.p, r2.w, r2.l];
+    for (var q = 1; q <= maxR; q++) row.push(r2.byR[q] === undefined ? '' : r2.byR[q]);
+    row.push(r2.pts);
+    return row;
+  });
+  pushSheets('ladderrank', {rows:rows, header:hdr, date:m.date, session:m.session, notes:m.notes})
+    .then(function(ok){ toast(ok ? 'Ladder standings synced (' + arr.length + ' players)' : 'Sync sent (check sheet)', true); });
+}
+
 function syncLuckyDraw() {
   if (!drawDone) { toast('Run the lucky draw first', false); return; }
   var m = getMeta();
@@ -1750,7 +2384,8 @@ function showPg(id) {
   var tb = document.querySelector('.ntab[data-pg="'+id+'"]');
   if (tb) tb.classList.add('on');
   if (id === 'pgR')  computeRankings();
-  if (id === 'pgLD') renderLuckyDraw();
+  if (id === 'pgA' || id === 'pgLD') applyGates();
+  if (id === 'pgLD' && isAuthed) renderLuckyDraw();
 }
 
 // ═════════════════════════════════════════════════════════════════
@@ -1771,8 +2406,11 @@ function buildGrid() {
   g.innerHTML = h;
 }
 
+document.addEventListener('touchend', function(){ spTouchY = null; });
+
 window.addEventListener('DOMContentLoaded', function() {
   buildGrid();
+  applyGates();
   prizes = DEFAULT_PRIZES.map(function(p){ return {name:p.name, desc:p.desc}; });
   renderPrizeList();
   var d = new Date();
