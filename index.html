@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Unique PickleBall — Tournament Manager</title>
+<script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:opsz,wght@9..144,300;9..144,600&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -897,6 +898,7 @@ function generateSchedule() {
 
     players = pData.map(function(p){ return p.name; });
 
+    SESS.wipeNext = true;   // fresh schedule - discard any stored score history
     if (cfg.gameType === 'duprladder') { generateLadder(pData, cfg); sessPushSoon(true); return; }
     if (cfg.gameType === 'dupr')       { generateDupr(pData, cfg);   sessPushSoon(true); return; }
     generateSet1(pData, cfg);
@@ -1839,8 +1841,10 @@ function ladderNextRound(btn) {
 
   ladderState.courtRound[ci] = cr + 1;
   if (SESS.role !== 'solo') {
+    rtPush();                                   // instant broadcast
     clearTimeout(SESS.pushJob);
-    sessPush(SESS.role !== 'court');   // send right away, no debounce
+    var f = (SESS.role !== 'court');
+    SESS.pushJob = setTimeout(function(){ sessPush(f); }, 600);
   }
   renderLadder();
 }
@@ -2447,7 +2451,8 @@ var SESS = {
   busy: false,
   status: '',          // shown in the session bar
   lastSeen: null,
-  pushJob: null
+  pushJob: null,
+  wipeNext: false     // set when a brand-new schedule is generated
 };
 
 function makeSessionCode() {
@@ -2460,134 +2465,312 @@ function sessUrl(params) {
   return SHEETS_URL + '?' + q.join('&');
 }
 
-// ---------- serialise / restore ----------
-function serializeState() {
-  var pd = getPlayerData();
-  return {
-    v: 1,
-    meta: {
-      date:    el('matchDate')    ? el('matchDate').value    : '',
-      session: el('matchSession') ? el('matchSession').value : '',
-      notes:   el('matchNotes')   ? el('matchNotes').value   : ''
-    },
-    cfg: {
-      gameType:   el('gameType')   ? el('gameType').value   : 'points',
-      assignType: el('assignType') ? el('assignType').value : 'roundrobin',
-      showDupr:   el('showDupr')   ? el('showDupr').checked : false,
-      maxPts:     el('maxPts')     ? el('maxPts').value     : '15',
-      band1:      el('band1')      ? el('band1').value      : '2.499',
-      band2:      el('band2')      ? el('band2').value      : '2.999',
-      band3:      el('band3')      ? el('band3').value      : '3.499',
-      courts:     numCourtsConfig
-    },
-    roster: pd.map(function(p){ return [p.globalIdx, p.name, p.dupr, p.checkedIn ? 1 : 0]; }),
-    players: players.slice(),
-    ladder: {
-      registry:     ladderState.registry,
-      courts:       ladderState.courts,
-      courtRound:   ladderState.courtRound,
-      scores:       ladderState.scores,
-      playerStatus: ladderState.playerStatus
-    },
-    sets: {
-      s1: set1Courts, s2: set2Courts, s3: set3Courts
-    }
+// ---------- serialise / restore (compact v2, must fit in a URL) ----------
+// Players are referenced by their position in the roster array, not by name,
+// which keeps the payload small enough to travel as a GET query string.
+function serializeState(includeAllScores) {
+  var pd  = getPlayerData();
+  var pos = {};                                  // name -> roster position
+  for (var i = 0; i < pd.length; i++) pos[pd[i].name] = i;
+
+  var st = {
+    v: 2,
+    m: [ el('matchDate') ? el('matchDate').value : '',
+         el('matchSession') ? el('matchSession').value : '',
+         el('matchNotes') ? el('matchNotes').value : '' ],
+    g: [ el('gameType') ? el('gameType').value : 'points',
+         el('assignType') ? el('assignType').value : 'roundrobin',
+         el('maxPts') ? el('maxPts').value : '15',
+         el('band1') ? el('band1').value : '2.499',
+         el('band2') ? el('band2').value : '2.999',
+         el('band3') ? el('band3').value : '3.499',
+         numCourtsConfig,
+         (el('showDupr') && el('showDupr').checked) ? 1 : 0 ],
+    p: pd.map(function(x){ return [x.globalIdx, x.name, x.dupr, x.checkedIn ? 1 : 0]; }),
+    c: [], cd: [], cr: {}, s: {}, ps: ''
   };
+
+  // courts as arrays of roster positions
+  for (var ci = 0; ci < ladderState.courts.length; ci++) {
+    var ct = ladderState.courts[ci];
+    st.c.push(ct.playerNames.map(function(n){ return pos[n] === undefined ? -1 : pos[n]; })
+                            .filter(function(v){ return v >= 0; }));
+    st.cd.push(ct.duprRange || '');
+  }
+  for (var k in ladderState.courtRound) st.cr[k] = ladderState.courtRound[k];
+
+  // Score HISTORY is NOT sent - the server accumulates it. We only send the
+  // current and just-finished round for each court, so the payload stays the
+  // same size no matter how many rounds are played.
+  for (var key in ladderState.scores) {
+    var sc = ladderState.scores[key];
+    if (!sc) continue;
+    var mm = key.match(/c(\d+)r(\d+)/);
+    if (!mm) continue;
+    var kc = parseInt(mm[1]), kr = parseInt(mm[2]);
+    var now = ladderState.courtRound[kc] || 1;
+    if (!includeAllScores && kr < now - 1) continue;   // older rounds already stored
+    var a = (sc.tA || []).map(function(n){ return pos[n]; }).filter(function(v){ return v !== undefined; });
+    var b = (sc.tB || []).map(function(n){ return pos[n]; }).filter(function(v){ return v !== undefined; });
+    if (sc.sA === '' && sc.sB === '' && !a.length) continue;
+    st.s[key] = [sc.sA || '', sc.sB || '', a, b];
+  }
+
+  // status: one char per roster position
+  var sArr = [];
+  for (var q = 0; q < pd.length; q++) {
+    var s2 = ladderState.playerStatus[pd[q].name] || 'active';
+    sArr.push(s2 === 'resting' ? 'r' : s2 === 'waiting' ? 'w' : 'a');
+  }
+  st.ps = sArr.join('');
+  return st;
 }
 
 function applyState(st) {
-  if (!st || st.v !== 1) return;
-  if (st.meta) {
-    if (el('matchDate'))    el('matchDate').value    = st.meta.date    || '';
-    if (el('matchSession')) el('matchSession').value = st.meta.session || 'Session 1';
-    if (el('matchNotes'))   el('matchNotes').value   = st.meta.notes   || '';
+  if (!st || st.v !== 2) return;
+
+  if (st.m) {
+    if (el('matchDate'))    el('matchDate').value    = st.m[0] || '';
+    if (el('matchSession')) el('matchSession').value = st.m[1] || 'Session 1';
+    if (el('matchNotes'))   el('matchNotes').value   = st.m[2] || '';
   }
-  if (st.cfg) {
-    if (el('gameType'))   el('gameType').value   = st.cfg.gameType   || 'points';
-    if (el('assignType')) el('assignType').value = st.cfg.assignType || 'roundrobin';
-    if (el('showDupr'))   el('showDupr').checked = !!st.cfg.showDupr;
-    if (el('maxPts'))     el('maxPts').value     = st.cfg.maxPts     || '15';
-    if (el('band1'))      el('band1').value      = st.cfg.band1      || '2.499';
-    if (el('band2'))      el('band2').value      = st.cfg.band2      || '2.999';
-    if (el('band3'))      el('band3').value      = st.cfg.band3      || '3.499';
-    if (st.cfg.courts) {
-      numCourtsConfig = st.cfg.courts;
+  if (st.g) {
+    if (el('gameType'))   el('gameType').value   = st.g[0] || 'points';
+    if (el('assignType')) el('assignType').value = st.g[1] || 'roundrobin';
+    if (el('maxPts'))     el('maxPts').value     = st.g[2] || '15';
+    if (el('band1'))      el('band1').value      = st.g[3] || '2.499';
+    if (el('band2'))      el('band2').value      = st.g[4] || '2.999';
+    if (el('band3'))      el('band3').value      = st.g[5] || '3.499';
+    if (st.g[6]) {
+      numCourtsConfig = st.g[6];
       if (el('courtCount')) el('courtCount').textContent = numCourtsConfig;
     }
+    if (el('showDupr')) el('showDupr').checked = !!st.g[7];
   }
-  // rewrite the registration grid so getPlayerData/getConfig behave identically
-  if (st.roster) {
-    var rows = document.querySelectorAll('.pentry');
-    for (var i = 0; i < rows.length; i++) {
-      var a = rows[i].querySelector('.pinp');
-      var b = rows[i].querySelector('.dupr-inp');
-      var c = rows[i].querySelector('.checkin-chk');
-      if (a) a.value = '';
-      if (b) b.value = '';
-      if (c) c.checked = false;
+
+  // rebuild the registration grid
+  var rows = document.querySelectorAll('.pentry');
+  for (var i = 0; i < rows.length; i++) {
+    var ia = rows[i].querySelector('.pinp');
+    var ib = rows[i].querySelector('.dupr-inp');
+    var ic = rows[i].querySelector('.checkin-chk');
+    if (ia) ia.value = '';
+    if (ib) ib.value = '';
+    if (ic) ic.checked = false;
+  }
+  var names = [];
+  if (st.p) {
+    for (var j = 0; j < st.p.length; j++) {
+      var r = st.p[j], gi = r[0];
+      names.push(r[1]);
+      if (!rows[gi]) continue;
+      var xa = rows[gi].querySelector('.pinp');
+      var xb = rows[gi].querySelector('.dupr-inp');
+      var xc = rows[gi].querySelector('.checkin-chk');
+      if (xa) xa.value   = r[1];
+      if (xb) xb.value   = r[2] || '';
+      if (xc) xc.checked = !!r[3];
     }
-    for (var j = 0; j < st.roster.length; j++) {
-      var r = st.roster[j], idx = r[0];
-      if (!rows[idx]) continue;
-      var ia = rows[idx].querySelector('.pinp');
-      var ib = rows[idx].querySelector('.dupr-inp');
-      var ic = rows[idx].querySelector('.checkin-chk');
-      if (ia) ia.value   = r[1];
-      if (ib) ib.value   = r[2] || '';
-      if (ic) ic.checked = !!r[3];
+  }
+  players = names.slice();
+
+  // rebuild ladder state from positions
+  ladderState.registry     = {};
+  ladderState.playerStatus = {};
+  if (st.p) {
+    for (var k = 0; k < st.p.length; k++) {
+      var rr = st.p[k];
+      ladderState.registry[rr[1]] = {name:rr[1], dupr:rr[2] || '', globalIdx:rr[0]};
+      var ch = st.ps ? st.ps.charAt(k) : 'a';
+      ladderState.playerStatus[rr[1]] = ch === 'r' ? 'resting' : ch === 'w' ? 'waiting' : 'active';
     }
   }
-  if (st.players) players = st.players.slice();
-  if (st.ladder) {
-    ladderState.registry     = st.ladder.registry     || {};
-    ladderState.courts       = st.ladder.courts       || [];
-    ladderState.courtRound   = st.ladder.courtRound   || {};
-    ladderState.scores       = st.ladder.scores       || {};
-    ladderState.playerStatus = st.ladder.playerStatus || {};
-    if (!ladderState.courtSettings)  ladderState.courtSettings  = {};
-    if (!ladderState.recentPartners) ladderState.recentPartners = {};
+  ladderState.courts = [];
+  if (st.c) {
+    for (var c2 = 0; c2 < st.c.length; c2++) {
+      ladderState.courts.push({
+        idx: c2,
+        label: 'Court ' + (c2 + 1),
+        playerNames: st.c[c2].map(function(p){ return names[p]; })
+                             .filter(function(n){ return !!n; }),
+        duprRange: (st.cd && st.cd[c2]) ? st.cd[c2] : '\u2014'
+      });
+    }
   }
-  if (st.sets) {
-    set1Courts = st.sets.s1 || [];
-    set2Courts = st.sets.s2 || [];
-    set3Courts = st.sets.s3 || [];
+  ladderState.courtRound = {};
+  if (st.cr) for (var kk in st.cr) ladderState.courtRound[kk] = st.cr[kk];
+
+  ladderState.scores = {};
+  if (st.s) {
+    for (var sk in st.s) {
+      var v = st.s[sk];
+      ladderState.scores[sk] = {
+        sA: v[0] || '',
+        sB: v[1] || '',
+        tA: (v[2] || []).map(function(p){ return names[p]; }).filter(function(n){ return !!n; }),
+        tB: (v[3] || []).map(function(p){ return names[p]; }).filter(function(n){ return !!n; })
+      };
+    }
   }
+  if (!ladderState.courtSettings)  ladderState.courtSettings  = {};
+  if (!ladderState.recentPartners) ladderState.recentPartners = {};
+
   onConfigChange();
   updateCount();
+}
+
+// ---------- REALTIME CHANNEL (instant push over WebSocket) ----------
+// Apps Script can only be polled, so it can never be instant. This adds a
+// publish/subscribe channel: a change is broadcast and the other devices
+// receive it in ~100-300ms. Apps Script stays the durable store so a device
+// joining late (or after the relay drops) still gets the session.
+//
+// PRIVACY NOTE: the relay is a free public broker. Player names and scores
+// pass through it. The session code acts as the channel name. Do not use it
+// for anything you would not read aloud at the court.
+var RT = {
+  client: null,
+  ready: false,
+  topic: '',
+  lastSent: 0
+};
+
+function rtStart(code) {
+  rtStop();
+  if (typeof mqtt === 'undefined') { console.warn('realtime library unavailable - polling only'); return; }
+  RT.topic = 'picklestars/v2/' + code + '/state';
+  try {
+    RT.client = mqtt.connect('wss://broker.emqx.io:8084/mqtt', {
+      clientId: 'ps_' + Math.random().toString(16).slice(2, 10),
+      keepalive: 30,
+      reconnectPeriod: 3000,
+      connectTimeout: 8000,
+      clean: true
+    });
+  } catch (e) { console.warn('realtime connect failed', e); return; }
+
+  RT.client.on('connect', function() {
+    RT.ready = true;
+    RT.client.subscribe(RT.topic, {qos: 0});
+    SESS.status = 'live';
+    paintSessBar();
+    paintNavSess();
+  });
+
+  RT.client.on('message', function(t, buf) {
+    if (t !== RT.topic) return;
+    var d = null;
+    try { d = JSON.parse(buf.toString()); } catch (e) { return; }
+    if (!d || !d.rev || d.from === RT.client.options.clientId) return;
+    if (d.rev <= SESS.rev) return;              // already have it
+    SESS.rev = d.rev;
+    SESS.lastSeen = new Date();
+    SESS.status = 'live';
+    applyState(d.state);
+    if (SESS.role === 'court' && SESS.courtIdx !== null) ladderState.focusCourt = SESS.courtIdx;
+    renderLadder();
+  });
+
+  RT.client.on('reconnect', function(){ RT.ready = false; SESS.status = 'sending'; paintSessBar(); });
+  RT.client.on('close',     function(){ RT.ready = false; });
+  RT.client.on('error',     function(e){ RT.ready = false; console.warn('realtime error', e); });
+}
+
+function rtStop() {
+  if (RT.client) { try { RT.client.end(true); } catch (e) {} }
+  RT.client = null;
+  RT.ready = false;
+  RT.topic = '';
+}
+
+// Broadcast instantly. retain:true means a device joining later receives the
+// current state immediately without waiting for the next change.
+function rtPush() {
+  if (!RT.client || !RT.ready || !RT.topic) return false;
+  SESS.rev++;
+  var msg = JSON.stringify({
+    rev: SESS.rev,
+    from: RT.client.options.clientId,
+    state: serializeState(true)
+  });
+  try {
+    RT.client.publish(RT.topic, msg, {qos: 0, retain: true});
+    RT.lastSent = Date.now();
+    SESS.lastSeen = new Date();
+    SESS.status = 'live';
+    paintSessBar();
+    return true;
+  } catch (e) { return false; }
 }
 
 // ---------- network ----------
 function sessPush(full) {
   if (!SESS.code) return;
-  var body;
+  var payload;
   if (full) {
-    body = JSON.stringify({type:'sess_put', code:SESS.code, rev:SESS.rev + 1, state:serializeState()});
+    payload = {type:'sess_put', code:SESS.code, rev:SESS.rev, state:serializeState(false)};
+    if (SESS.wipeNext) { payload.wipe = 1; SESS.wipeNext = false; }
   } else {
     var ci  = SESS.courtIdx;
     var cr  = ladderState.courtRound[ci] || 1;
     var key = 'c' + ci + 'r' + cr;
-    body = JSON.stringify({
+    var sc  = ladderState.scores[key] || {};
+    var pd  = getPlayerData(), pos = {};
+    for (var i = 0; i < pd.length; i++) pos[pd[i].name] = i;
+    // a court device's Next Round also moves players between courts, so send
+    // the court layout and round counters alongside the score
+    var layout = [];
+    for (var q = 0; q < ladderState.courts.length; q++) {
+      layout.push(ladderState.courts[q].playerNames
+        .map(function(n){ return pos[n] === undefined ? -1 : pos[n]; })
+        .filter(function(v){ return v >= 0; }));
+    }
+    var crAll = {};
+    for (var rk in ladderState.courtRound) crAll[rk] = ladderState.courtRound[rk];
+    payload = {
       type:'sess_patch', code:SESS.code, court:ci, round:cr, key:key,
-      score: ladderState.scores[key] || {}
-    });
+      score:[ sc.sA || '', sc.sB || '',
+              (sc.tA || []).map(function(n){ return pos[n]; }),
+              (sc.tB || []).map(function(n){ return pos[n]; }) ],
+      c:  layout,
+      cr: crAll
+    };
   }
+
+  // GET, not POST: Apps Script answers /exec with a redirect, and browsers
+  // drop a POST body when following it. A query string survives.
+  var url = sessUrl({data: JSON.stringify(payload)});
+  if (url.length > 7800) {
+    SESS.status = 'error';
+    paintSessBar();
+    alert('This session is too large to share in one request (' + url.length +
+          ' characters).\n\nSync the finished rounds to Google Sheets, then start a fresh session.');
+    return;
+  }
+
   SESS.status = 'sending';
   paintSessBar();
-  fetch(SHEETS_URL, {method:'POST', headers:{'Content-Type':'text/plain'}, body:body})
-    .then(function(){
-      SESS.status = 'ok';
-      SESS.lastSeen = new Date();
-      if (full) SESS.rev++;
+  fetch(url, {method:'GET', redirect:'follow'})
+    .then(function(r){ return r.text(); })
+    .then(function(t) {
+      if (t && t.indexOf('ok') !== -1) {
+        SESS.status = RT.ready ? 'live' : 'ok';
+        SESS.lastSeen = new Date();
+      } else {
+        SESS.status = 'error';
+        console.error('sessPush reply:', t);
+      }
       paintSessBar();
       setTimeout(sessCheck, 400);
     })
-    .catch(function(){ SESS.status = 'error'; paintSessBar(); });
+    .catch(function(e){ SESS.status = 'error'; console.error('sessPush:', e); paintSessBar(); });
 }
 
 function sessPushSoon(full) {
   if (SESS.role === 'solo' || !SESS.code) return;
-  clearTimeout(SESS.pushJob);
-  SESS.pushJob = setTimeout(function(){ sessPush(full); }, 200);
+  rtPush();                       // instant: other devices see it in ~100-300ms
+  clearTimeout(SESS.pushJob);     // durable: Apps Script write, slightly delayed
+  SESS.pushJob = setTimeout(function(){ sessPush(full); }, 900);
 }
 
 function sessPull(force) {
@@ -2633,7 +2816,12 @@ function sessCheck() {
 
 function sessStartPolling() {
   clearInterval(SESS.timer);
-  SESS.timer = setInterval(sessCheck, 1500);
+  // The realtime channel does the fast work. Polling is only a fallback for
+  // when the relay is unavailable, so it runs slowly to save battery/quota.
+  SESS.timer = setInterval(function() {
+    if (RT.ready) { if (Date.now() - RT.lastSent > 30000) sessCheck(); }
+    else sessCheck();
+  }, RT.ready ? 15000 : 2000);
 }
 
 // ---------- host / join ----------
@@ -2641,6 +2829,7 @@ function sessHostStart() {
   SESS.code = makeSessionCode();
   SESS.role = 'host';
   SESS.rev  = 0;
+  rtStart(SESS.code);
   sessPush(true);
   sessStartPolling();
   paintSessBar();
@@ -2656,6 +2845,7 @@ function sessHostStop() {
   SESS.role = 'solo';
   SESS.code = '';
   SESS.status = '';
+  rtStop();
   paintSessBar();
   paintNavSess();
   applyGates();
@@ -2673,6 +2863,7 @@ function sessLeave() {
   SESS.role = 'solo';
   SESS.courtIdx = null;
   SESS.code = '';
+  rtStop();
   ladderState.focusCourt = null;
   paintNavSess();
   renderLadder();
@@ -2781,6 +2972,7 @@ function sessJoinModal() {
       ladderState.focusCourt = SESS.courtIdx;
       closeSessionModal();
       paintNavSess();
+      rtStart(code);
       sessStartPolling();
       renderLadder();
       showPg('pgLadder');
@@ -2796,8 +2988,9 @@ function paintNavSess() {
   var b = el('navSess');
   if (!b) return;
   b.className = 'navsess';
-  if (SESS.role === 'host')       { b.className += ' live';  b.innerHTML = '&#128225; Live: ' + SESS.code; }
-  else if (SESS.role === 'court') { b.className += ' court'; b.innerHTML = '&#128225; Court ' + (SESS.courtIdx + 1) + ' \u00b7 ' + SESS.code; }
+  var bolt = RT.ready ? '&#9889; ' : '';
+  if (SESS.role === 'host')       { b.className += ' live';  b.innerHTML = bolt + 'Live: ' + SESS.code; }
+  else if (SESS.role === 'court') { b.className += ' court'; b.innerHTML = bolt + 'Court ' + (SESS.courtIdx + 1) + ' \u00b7 ' + SESS.code; }
   else                            { b.innerHTML = '&#128225; Live: Off'; }
 }
 
@@ -2823,7 +3016,8 @@ function paintHostSync() {
 
 function sessBarMarkup() {
   var o = '';
-  var dotCol = SESS.status === 'ok' ? '#4ade80'
+  var dotCol = SESS.status === 'live' ? '#4ade80'
+             : SESS.status === 'ok' ? '#9dd9a8'
              : SESS.status === 'sending' ? '#5ce1ff'
              : SESS.status === 'error' ? '#ff7b7b'
              : SESS.status === 'nosession' ? '#ffb74d' : '#8fb8d4';
@@ -2839,13 +3033,13 @@ function sessBarMarkup() {
   } else if (SESS.role === 'court') {
     o += '<span class="sess-dot" style="background:'+dotCol+'"></span>';
     o += '<span class="sess-lbl">Court device &mdash; <strong>'+SESS.code+'</strong> &middot; Court '+(SESS.courtIdx+1)+'</span>';
-    o += '<span class="sess-meta">updated '+seen+'</span>';
+    o += '<span class="sess-meta">'+(RT.ready ? '&#9889; instant' : 'polling')+' &middot; '+seen+'</span>';
     o += '<button class="sess-btn" onclick="sessPull(true)">Refresh Now</button>';
     o += '<button class="sess-btn leave" onclick="sessLeave()">Leave</button>';
   } else {
     o += '<span class="sess-dot" style="background:'+dotCol+'"></span>';
     o += '<span class="sess-lbl">Hosting &mdash; code <strong class="sess-code">'+SESS.code+'</strong></span>';
-    o += '<span class="sess-meta">updated '+seen+'</span>';
+    o += '<span class="sess-meta">'+(RT.ready ? '&#9889; instant' : 'polling')+' &middot; '+seen+'</span>';
     o += '<button class="sess-btn" onclick="sessPush(true)">Push Now</button>';
     o += '<button class="sess-btn leave" onclick="sessHostStop()">Stop Session</button>';
   }
