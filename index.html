@@ -513,12 +513,14 @@ function getCourtPlayerTotals(court) {
 })();
 // Initialise prize list display and set default date to today
 setTimeout(()=>{
-  renderPrizeList();
-  updateWinnerPreview();
-  onConfigChange(); // apply initial config state
-  const d = new Date();
-  const pad = n => String(n).padStart(2,'0');
-  document.getElementById('matchDate').value = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  try { renderPrizeList(); } catch(e) { console.error('renderPrizeList error:', e); }
+  try { updateWinnerPreview(); } catch(e) { console.error('updateWinnerPreview error:', e); }
+  try { onConfigChange(); } catch(e) { console.error('onConfigChange error:', e); }
+  try {
+    const d = new Date();
+    const pad = n => String(n).padStart(2,'0');
+    document.getElementById('matchDate').value = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  } catch(e) { console.error('date init error:', e); }
 }, 0);
 
 function updateCount(){
@@ -2261,3 +2263,7 @@ function onConfigChange() {
 }
 
 
+
+</script>
+</body>
+</html>
