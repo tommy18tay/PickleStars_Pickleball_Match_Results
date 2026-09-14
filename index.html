@@ -331,6 +331,18 @@ nav{background:var(--sf);border-bottom:1px solid var(--b);padding:0 20px;display
 .navsess:hover{background:var(--sf3)}
 .navsess.live{background:var(--greenbg);border-color:var(--greenbdr);color:var(--green)}
 .navsess.court{background:var(--acbg);border-color:#b8d0f0;color:var(--c1)}
+
+.jm-block{background:rgba(255,255,255,.05);border:2px solid rgba(255,255,255,.13);border-radius:14px;padding:16px;margin-bottom:14px;text-align:left}
+.jm-hdr{font-size:14px;font-weight:800;color:#5ce1ff;text-transform:uppercase;letter-spacing:.11em;margin-bottom:7px}
+.jm-note{font-size:14px;color:#8fb8d4;line-height:1.5;margin-bottom:12px}
+.jm-inp{width:100%;background:rgba(0,0,0,.35);border:2px solid rgba(255,255,255,.22);color:#eaf6ff;font-family:'DM Sans',sans-serif;font-size:17px;padding:13px 14px;border-radius:11px;outline:none;margin-bottom:10px;min-height:52px}
+.jm-inp:focus{border-color:#5ce1ff}
+.jm-inp option{background:#12263a}
+.jm-btn{width:100%;font-family:'DM Sans',sans-serif;font-size:17px;font-weight:700;padding:14px;border-radius:11px;cursor:pointer;min-height:54px;border:none}
+.jm-btn.go{background:linear-gradient(135deg,#00b4d8,#0077b6);color:#fff}
+.jm-btn.host{background:linear-gradient(135deg,#4ade80,#1a8a50);color:#062}
+.jm-btn.alt{background:rgba(255,255,255,.08);border:2px solid rgba(255,255,255,.2);color:#cfe6f5}
+.jm-err{display:none;margin-top:11px;padding:11px 13px;background:rgba(255,123,123,.14);border:1.5px solid rgba(255,123,123,.45);border-radius:10px;font-size:14px;color:#ff9b9b;font-weight:600;line-height:1.5}
 </style>
 </head>
 <body>
@@ -2626,19 +2638,8 @@ function sessHostStop() {
 }
 
 function sessJoin() {
-  var codeEl  = el('joinCode');
-  var courtEl = el('joinCourt');
-  var code = codeEl ? codeEl.value.trim().toUpperCase() : '';
-  var ci   = courtEl ? parseInt(courtEl.value) : NaN;
-  if (!code) { alert('Enter the session code shown on the host device.'); return; }
-  if (isNaN(ci)) { alert('Pick which court this device is for.'); return; }
-  SESS.code = code;
-  SESS.role = 'court';
-  SESS.courtIdx = ci;
-  SESS.rev = -1;
-  paintNavSess();
-  sessPull(true);
-  sessStartPolling();
+  // superseded by the session modal (sessJoinModal)
+  openSessionModal();
 }
 
 function sessLeave() {
@@ -2653,7 +2654,8 @@ function sessLeave() {
 }
 
 // ---------- session bar ----------
-// Nav chip: one tap to start hosting, or shows what this device is doing
+// Nav chip -> session dialog. Works on a fresh device where no tabs are
+// unlocked yet, so a courtside tablet can join before any game type is known.
 function sessNavClick() {
   if (SESS.role === 'host') {
     if (confirm('Live session ' + SESS.code + ' is running.\n\nStop sharing this session?')) sessHostStop();
@@ -2663,12 +2665,98 @@ function sessNavClick() {
     showPg('pgLadder');
     return;
   }
-  if (!isAuthed) {
-    alert('To START a live session: open "Registration & Lucky Draw", log in as host, then tap this button again.\n\nTo JOIN as a courtside device: open the Ladder tab and enter the session code shown on the host device.');
-    showPg('pgA');
-    return;
+  openSessionModal();
+}
+
+function openSessionModal() {
+  var o = '';
+  o += '<div class="sp-veil" id="jmVeil" onclick="if(event.target.id===\'jmVeil\')closeSessionModal()">';
+  o += '<div class="sp-box" onclick="event.stopPropagation()" style="max-width:460px">';
+  o += '<div class="sp-title">&#128225; Live Session</div>';
+  o += '<div class="sp-sub">Share one game across several devices</div>';
+
+  o += '<div class="jm-block">';
+  o += '<div class="jm-hdr">Join as a courtside device</div>';
+  o += '<div class="jm-note">Enter the code shown on the host device, then choose which court this device sits at.</div>';
+  o += '<input class="jm-inp" id="jmCode" placeholder="Session code e.g. PB4821" maxlength="8" autocomplete="off" onkeydown="if(event.key===\'Enter\')sessJoinModal()">';
+  o += '<select class="jm-inp" id="jmCourt">';
+  o += '<option value="">Which court is this device?</option>';
+  var nC = Math.max(ladderState.courts.length, numCourtsConfig, 8);
+  for (var i = 0; i < nC; i++) o += '<option value="'+i+'">Court '+(i+1)+'</option>';
+  o += '</select>';
+  o += '<button class="jm-btn go" onclick="sessJoinModal()">Join Session</button>';
+  o += '<div class="jm-err" id="jmErr"></div>';
+  o += '</div>';
+
+  o += '<div class="jm-block">';
+  o += '<div class="jm-hdr">Host a new session</div>';
+  if (isAuthed) {
+    o += '<div class="jm-note">Generates a code for the courtside devices to join.</div>';
+    o += '<button class="jm-btn host" onclick="closeSessionModal();sessHostStart()">Start Hosting</button>';
+  } else {
+    o += '<div class="jm-note">Only the host can start a session. Log in under &ldquo;Registration &amp; Lucky Draw&rdquo; first.</div>';
+    o += '<button class="jm-btn alt" onclick="closeSessionModal();showPg(\'pgA\')">Go to Host Login</button>';
   }
-  sessHostStart();
+  o += '</div>';
+
+  o += '<button class="sp-btn close" style="width:100%" onclick="closeSessionModal()">Cancel</button>';
+  o += '</div></div>';
+
+  var host = document.createElement('div');
+  host.id = 'jmHost';
+  host.innerHTML = o;
+  document.body.appendChild(host);
+  setTimeout(function(){ if (el('jmCode')) el('jmCode').focus(); }, 60);
+}
+
+function closeSessionModal() {
+  var h = el('jmHost');
+  if (h) h.parentNode.removeChild(h);
+}
+
+function sessJoinModal() {
+  var code = el('jmCode')  ? el('jmCode').value.trim().toUpperCase() : '';
+  var ciRaw = el('jmCourt') ? el('jmCourt').value : '';
+  var errEl = el('jmErr');
+  var fail = function(msg) { if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; } };
+  if (!code)        { fail('Enter the session code from the host device.'); return; }
+  if (ciRaw === '') { fail('Choose which court this device is for.'); return; }
+
+  var ci = parseInt(ciRaw);
+  if (errEl) errEl.style.display = 'none';
+  if (el('jmCode')) el('jmCode').disabled = true;
+
+  fetch(sessUrl({action:'sess_get', code:code}), {method:'GET', redirect:'follow'})
+    .then(function(r){ return r.text(); })
+    .then(function(t) {
+      var d = null;
+      try { d = JSON.parse(t); } catch (e) {}
+      if (!d || !d.ok) {
+        if (el('jmCode')) el('jmCode').disabled = false;
+        fail('Session "' + code + '" not found. Check the code, and that the host has tapped Start Hosting.');
+        return;
+      }
+      SESS.code = code;
+      SESS.role = 'court';
+      SESS.courtIdx = ci;
+      SESS.rev = d.rev;
+      SESS.status = 'ok';
+      SESS.lastSeen = new Date();
+      applyState(d.state);
+      if (ladderState.courts.length && ci >= ladderState.courts.length) {
+        SESS.courtIdx = ladderState.courts.length - 1;
+      }
+      ladderState.focusCourt = SESS.courtIdx;
+      closeSessionModal();
+      paintNavSess();
+      sessStartPolling();
+      renderLadder();
+      showPg('pgLadder');
+    })
+    .catch(function(e) {
+      if (el('jmCode')) el('jmCode').disabled = false;
+      fail('Could not reach the session store. Check the device is online.');
+    });
 }
 
 function paintNavSess() {
@@ -2714,13 +2802,7 @@ function sessBarMarkup() {
   if (SESS.role === 'solo') {
     o += '<span class="sess-dot" style="background:#8fb8d4"></span>';
     o += '<span class="sess-lbl">Offline &mdash; this device only</span>';
-    o += '<input class="sess-inp" id="joinCode" placeholder="Session code" maxlength="8" autocomplete="off">';
-    o += '<select class="sess-inp" id="joinCourt" style="min-width:120px">';
-    o += '<option value="">This court&hellip;</option>';
-    var nC = ladderState.courts.length || numCourtsConfig || 3;
-    for (var i = 0; i < nC; i++) o += '<option value="'+i+'">Court '+(i+1)+'</option>';
-    o += '</select>';
-    o += '<button class="sess-btn join" onclick="sessJoin()">Join Session</button>';
+    o += '<button class="sess-btn join" onclick="openSessionModal()">&#128225; Join or Host Session</button>';
   } else if (SESS.role === 'court') {
     o += '<span class="sess-dot" style="background:'+dotCol+'"></span>';
     o += '<span class="sess-lbl">Court device &mdash; <strong>'+SESS.code+'</strong> &middot; Court '+(SESS.courtIdx+1)+'</span>';
