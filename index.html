@@ -1838,7 +1838,10 @@ function ladderNextRound(btn) {
 
 
   ladderState.courtRound[ci] = cr + 1;
-  if (SESS.role === 'court') sessPushSoon(false); else sessPushSoon(true);
+  if (SESS.role !== 'solo') {
+    clearTimeout(SESS.pushJob);
+    sessPush(SESS.role !== 'court');   // send right away, no debounce
+  }
   renderLadder();
 }
 
@@ -2571,14 +2574,20 @@ function sessPush(full) {
   SESS.status = 'sending';
   paintSessBar();
   fetch(SHEETS_URL, {method:'POST', headers:{'Content-Type':'text/plain'}, body:body})
-    .then(function(){ SESS.status = 'ok'; SESS.lastSeen = new Date(); if (full) SESS.rev++; paintSessBar(); })
+    .then(function(){
+      SESS.status = 'ok';
+      SESS.lastSeen = new Date();
+      if (full) SESS.rev++;
+      paintSessBar();
+      setTimeout(sessCheck, 400);
+    })
     .catch(function(){ SESS.status = 'error'; paintSessBar(); });
 }
 
 function sessPushSoon(full) {
   if (SESS.role === 'solo' || !SESS.code) return;
   clearTimeout(SESS.pushJob);
-  SESS.pushJob = setTimeout(function(){ sessPush(full); }, 700);
+  SESS.pushJob = setTimeout(function(){ sessPush(full); }, 200);
 }
 
 function sessPull(force) {
@@ -2606,9 +2615,25 @@ function sessPull(force) {
     .catch(function(){ SESS.busy = false; SESS.status = 'error'; paintSessBar(); });
 }
 
+// Fast loop: ask only for the revision number (a few bytes) every 1.5s.
+// Pull the full state only when that number actually changes.
+function sessCheck() {
+  if (!SESS.code || SESS.busy) return;
+  fetch(sessUrl({action:'sess_rev', code:SESS.code}), {method:'GET', redirect:'follow'})
+    .then(function(r){ return r.text(); })
+    .then(function(t) {
+      SESS.lastSeen = new Date();
+      var n = parseInt(t, 10);
+      if (isNaN(n)) { SESS.status = 'nosession'; paintSessBar(); return; }
+      SESS.status = 'ok';
+      if (n > SESS.rev) sessPull(false); else paintSessBar();
+    })
+    .catch(function(){ SESS.status = 'error'; paintSessBar(); });
+}
+
 function sessStartPolling() {
   clearInterval(SESS.timer);
-  SESS.timer = setInterval(function(){ sessPull(false); }, 5000);
+  SESS.timer = setInterval(sessCheck, 1500);
 }
 
 // ---------- host / join ----------
@@ -2736,6 +2761,16 @@ function sessJoinModal() {
         fail('Session "' + code + '" not found. Check the code, and that the host has tapped Start Hosting.');
         return;
       }
+      // how many courts does this session actually have?
+      var nAvail = (d.state && d.state.ladder && d.state.ladder.courts)
+                   ? d.state.ladder.courts.length : 0;
+      if (nAvail && ci >= nAvail) {
+        if (el('jmCode')) el('jmCode').disabled = false;
+        fail('This session only has ' + nAvail + ' court' + (nAvail > 1 ? 's' : '') +
+             '. Pick Court 1' + (nAvail > 1 ? '\u2013' + nAvail : '') +
+             ', or ask the host to raise "Courts Available" and regenerate.');
+        return;
+      }
       SESS.code = code;
       SESS.role = 'court';
       SESS.courtIdx = ci;
@@ -2743,9 +2778,6 @@ function sessJoinModal() {
       SESS.status = 'ok';
       SESS.lastSeen = new Date();
       applyState(d.state);
-      if (ladderState.courts.length && ci >= ladderState.courts.length) {
-        SESS.courtIdx = ladderState.courts.length - 1;
-      }
       ladderState.focusCourt = SESS.courtIdx;
       closeSessionModal();
       paintNavSess();
@@ -2755,7 +2787,8 @@ function sessJoinModal() {
     })
     .catch(function(e) {
       if (el('jmCode')) el('jmCode').disabled = false;
-      fail('Could not reach the session store. Check the device is online.');
+      fail('Could not reach the session store (' + (e && e.message ? e.message : 'network error') +
+           '). Tap Join Session again \u2014 the first call after a pause can time out.');
     });
 }
 
