@@ -309,6 +309,23 @@ nav{background:var(--sf);border-bottom:1px solid var(--b);padding:0 20px;display
 .ldr-syncbtn:hover{background:rgba(74,222,128,.24)}
 .ldr-syncbtn.alt{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.2);color:#cfe6f5}
 .ldr-syncbtn.alt:hover{background:rgba(255,255,255,.14)}
+
+/* ═══════ LIVE SESSION BAR ═══════ */
+.sess-bar{display:flex;align-items:center;gap:11px;flex-wrap:wrap;margin-bottom:16px;padding:13px 17px;background:rgba(255,255,255,.05);border:2px solid rgba(255,255,255,.14);border-radius:14px}
+.sess-dot{width:13px;height:13px;border-radius:50%;flex-shrink:0;box-shadow:0 0 10px currentColor}
+.sess-lbl{font-size:16px;font-weight:600;color:#cfe6f5}
+.sess-code{font-family:'DM Mono',monospace;font-size:20px;color:#5ce1ff;letter-spacing:.08em}
+.sess-meta{font-size:13px;color:#8fb8d4;font-family:'DM Mono',monospace}
+.sess-inp{background:rgba(0,0,0,.3);border:2px solid rgba(255,255,255,.2);color:#eaf6ff;font-family:'DM Sans',sans-serif;font-size:16px;padding:10px 13px;border-radius:10px;outline:none;min-height:46px;max-width:170px}
+.sess-inp:focus{border-color:#5ce1ff}
+.sess-inp option{background:#12263a}
+.sess-btn{background:rgba(255,255,255,.08);border:2px solid rgba(255,255,255,.22);color:#cfe6f5;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:700;padding:10px 16px;border-radius:10px;cursor:pointer;min-height:46px}
+.sess-btn:hover{background:rgba(255,255,255,.16)}
+.sess-btn.join{background:linear-gradient(135deg,#00b4d8,#0077b6);border:none;color:#fff}
+.sess-btn.leave{border-color:rgba(255,123,123,.5);color:#ff9b9b}
+.sess-btn.leave:hover{background:rgba(255,123,123,.15)}
+.hostsync{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px;padding:13px 16px;background:var(--acbg);border:1.5px solid #b8d0f0;border-radius:var(--r);font-size:13px;color:var(--tx2)}
+.hostsync .code{font-family:'DM Mono',monospace;font-size:20px;font-weight:700;color:var(--c1);letter-spacing:.08em}
 </style>
 </head>
 <body>
@@ -335,6 +352,11 @@ nav{background:var(--sf);border-bottom:1px solid var(--b);padding:0 20px;display
   <div class="lockbar" id="hostBar" style="display:none">
     &#128275; Host access unlocked
     <button class="lockbtn" onclick="lockHost()">&#128274; Lock again</button>
+  </div>
+  <div class="hostsync" id="hostSync" style="display:none">
+    <strong style="color:var(--c1)">&#128225; Live session</strong>
+    <span id="hostSessInfo">Not started &mdash; courtside devices cannot see this session yet.</span>
+    <button class="btn btn-s btn-p" id="hostSessBtn" onclick="hostSessToggle()" style="margin-left:auto">Start Live Session</button>
   </div>
   <div class="stitle">Player Registration</div>
   <div class="ssub">Register players, configure courts and game type, then generate the schedule.</div>
@@ -857,9 +879,10 @@ function generateSchedule() {
 
     players = pData.map(function(p){ return p.name; });
 
-    if (cfg.gameType === 'duprladder') { generateLadder(pData, cfg); return; }
-    if (cfg.gameType === 'dupr')       { generateDupr(pData, cfg);   return; }
+    if (cfg.gameType === 'duprladder') { generateLadder(pData, cfg); sessPushSoon(true); return; }
+    if (cfg.gameType === 'dupr')       { generateDupr(pData, cfg);   sessPushSoon(true); return; }
     generateSet1(pData, cfg);
+    sessPushSoon(true);
   } catch (err) {
     alert('Error: ' + err.message);
     console.error(err);
@@ -1225,6 +1248,7 @@ function setPlayerStatus(btn) {
       break;
     }
   }
+  if (SESS.role !== 'solo') sessPushSoon(SESS.role !== 'court');
   renderLadder();
 }
 
@@ -1240,17 +1264,20 @@ function renderLadder() {
   var maxRound = 1;
   for (var k in ladderState.courtRound) if (ladderState.courtRound[k] > maxRound) maxRound = ladderState.courtRound[k];
 
+  if (SESS.role === 'court' && SESS.courtIdx !== null) ladderState.focusCourt = SESS.courtIdx;
   var focus = (ladderState.focusCourt === 0 || ladderState.focusCourt) ? ladderState.focusCourt : null;
   if (focus !== null && !ladderState.courts[focus]) { focus = null; ladderState.focusCourt = null; }
+  var isCourtDev = (SESS.role === 'court');
   var pgEl = el('pgLadder');
   if (pgEl) { if (focus !== null) pgEl.classList.add('focus-mode'); else pgEl.classList.remove('focus-mode'); }
 
   var o = '';
+  o += sessBarMarkup();
   if (focus !== null) {
     o += '<div class="ldr-focusbar">';
     o += '<div class="ldr-focustitle">'+ladderState.courts[focus].label+' &middot; Courtside Display</div>';
     o += '<div class="ldr-cround">Round '+(ladderState.courtRound[focus]||1)+'</div>';
-    o += '<button class="ldr-exitfs" onclick="exitCourtFocus()">&#10005; Back to All Courts</button>';
+    if (!isCourtDev) o += '<button class="ldr-exitfs" onclick="exitCourtFocus()">&#10005; Back to All Courts</button>';
     o += '</div>';
   } else {
     o += '<div class="ldr-bar">';
@@ -1304,8 +1331,10 @@ function renderLadder() {
     o += '<span class="ldr-cname">'+ct.label+'</span>';
     o += '<span class="ldr-cround">R'+cr+'</span>';
     o += '<span class="ldr-cmeta">'+all.length+' players &middot; DUPR '+ct.duprRange+'</span>';
-    o += '<button class="ldr-fs" data-court="'+ci+'" onclick="toggleCourtFocus(this)" title="Show only this court (courtside display)">&#9974;</button>';
-    o += '<button class="ldr-gear'+(sOpen?' open':'')+'" data-court="'+ci+'" onclick="toggleCourtSettings(this)" title="Court settings">&#9881;</button>';
+    if (!isCourtDev) {
+      o += '<button class="ldr-fs" data-court="'+ci+'" onclick="toggleCourtFocus(this)" title="Show only this court (courtside display)">&#9974;</button>';
+      o += '<button class="ldr-gear'+(sOpen?' open':'')+'" data-court="'+ci+'" onclick="toggleCourtSettings(this)" title="Court settings">&#9881;</button>';
+    }
     o += '<button class="ldr-next" data-court="'+ci+'" onclick="ladderNextRound(this)">Next Round &#9654;</button>';
     o += '</div>';
     o += '<div class="ldr-body">';
@@ -1386,7 +1415,7 @@ function renderLadder() {
     o += '</div>';
 
     // ───── 4. SETTINGS DRAWER (gear) ─────
-    if (sOpen) {
+    if (sOpen && !isCourtDev) {
       o += '<div class="ldr-panel">';
       o += '<div class="ldr-phdr">&#9881; Court Settings &mdash; Move Player</div>';
       o += '<div class="ldr-pnote">Pick a destination court for any player. They join the back of that court\'s queue.</div>';
@@ -1543,6 +1572,7 @@ function applyGates() {
   }
   var bar = el('hostBar');
   if (bar) bar.style.display = isAuthed ? 'flex' : 'none';
+  paintHostSync();
 }
 
 function toggleCourtSettings(btn) {
@@ -1577,6 +1607,7 @@ function movePlayerCourt(sel) {
       delete s.tA; delete s.tB;
     }
   }
+  if (SESS.role === 'host') sessPushSoon(true);
   renderLadder();
 }
 
@@ -1602,6 +1633,7 @@ function ladderScore(inp) {
     ladderState.scores[key][fld] = '';
   }
 
+  sessPushSoon(SESS.role !== 'court');
   var box = el('d_'+key);
   if (!box) return;
   var sc = ladderState.scores[key];
@@ -1788,6 +1820,7 @@ function ladderNextRound(btn) {
 
 
   ladderState.courtRound[ci] = cr + 1;
+  if (SESS.role === 'court') sessPushSoon(false); else sessPushSoon(true);
   renderLadder();
 }
 
@@ -2369,6 +2402,311 @@ function syncLuckyDraw() {
   });
   pushSheets('luckydraw', {rows:rows, date:m.date, session:m.session, notes:m.notes})
     .then(function(ok){ toast(ok ? 'Lucky draw synced' : 'Sync sent (check sheet)', true); });
+}
+
+// ═════════════════════════════════════════════════════════════════
+// LIVE SESSION SYNC  (shared state via Google Apps Script)
+//
+//   Host device   : owns players / config / court assignment.
+//                   Pushes the FULL session state.
+//   Court device  : joins with the session code, picks its court,
+//                   and may only write scores for THAT court.
+//   Both poll every 5 seconds for changes.
+//
+// Conflict rule: a court device sends a small patch (its court's score
+// only), the host sends the full state but pulls first so it does not
+// clobber scores that arrived seconds earlier.
+// ═════════════════════════════════════════════════════════════════
+var SESS = {
+  code: '',            // e.g. PB4821
+  role: 'solo',        // 'solo' | 'host' | 'court'
+  courtIdx: null,      // court this device owns (role === 'court')
+  rev: 0,              // last revision seen
+  timer: null,
+  busy: false,
+  status: '',          // shown in the session bar
+  lastSeen: null,
+  pushJob: null
+};
+
+function makeSessionCode() {
+  return 'PB' + Math.floor(1000 + Math.random() * 9000);
+}
+
+function sessUrl(params) {
+  var q = [];
+  for (var k in params) q.push(k + '=' + encodeURIComponent(params[k]));
+  return SHEETS_URL + '?' + q.join('&');
+}
+
+// ---------- serialise / restore ----------
+function serializeState() {
+  var pd = getPlayerData();
+  return {
+    v: 1,
+    meta: {
+      date:    el('matchDate')    ? el('matchDate').value    : '',
+      session: el('matchSession') ? el('matchSession').value : '',
+      notes:   el('matchNotes')   ? el('matchNotes').value   : ''
+    },
+    cfg: {
+      gameType:   el('gameType')   ? el('gameType').value   : 'points',
+      assignType: el('assignType') ? el('assignType').value : 'roundrobin',
+      showDupr:   el('showDupr')   ? el('showDupr').checked : false,
+      maxPts:     el('maxPts')     ? el('maxPts').value     : '15',
+      band1:      el('band1')      ? el('band1').value      : '2.499',
+      band2:      el('band2')      ? el('band2').value      : '2.999',
+      band3:      el('band3')      ? el('band3').value      : '3.499',
+      courts:     numCourtsConfig
+    },
+    roster: pd.map(function(p){ return [p.globalIdx, p.name, p.dupr, p.checkedIn ? 1 : 0]; }),
+    players: players.slice(),
+    ladder: {
+      registry:     ladderState.registry,
+      courts:       ladderState.courts,
+      courtRound:   ladderState.courtRound,
+      scores:       ladderState.scores,
+      playerStatus: ladderState.playerStatus
+    },
+    sets: {
+      s1: set1Courts, s2: set2Courts, s3: set3Courts
+    }
+  };
+}
+
+function applyState(st) {
+  if (!st || st.v !== 1) return;
+  if (st.meta) {
+    if (el('matchDate'))    el('matchDate').value    = st.meta.date    || '';
+    if (el('matchSession')) el('matchSession').value = st.meta.session || 'Session 1';
+    if (el('matchNotes'))   el('matchNotes').value   = st.meta.notes   || '';
+  }
+  if (st.cfg) {
+    if (el('gameType'))   el('gameType').value   = st.cfg.gameType   || 'points';
+    if (el('assignType')) el('assignType').value = st.cfg.assignType || 'roundrobin';
+    if (el('showDupr'))   el('showDupr').checked = !!st.cfg.showDupr;
+    if (el('maxPts'))     el('maxPts').value     = st.cfg.maxPts     || '15';
+    if (el('band1'))      el('band1').value      = st.cfg.band1      || '2.499';
+    if (el('band2'))      el('band2').value      = st.cfg.band2      || '2.999';
+    if (el('band3'))      el('band3').value      = st.cfg.band3      || '3.499';
+    if (st.cfg.courts) {
+      numCourtsConfig = st.cfg.courts;
+      if (el('courtCount')) el('courtCount').textContent = numCourtsConfig;
+    }
+  }
+  // rewrite the registration grid so getPlayerData/getConfig behave identically
+  if (st.roster) {
+    var rows = document.querySelectorAll('.pentry');
+    for (var i = 0; i < rows.length; i++) {
+      var a = rows[i].querySelector('.pinp');
+      var b = rows[i].querySelector('.dupr-inp');
+      var c = rows[i].querySelector('.checkin-chk');
+      if (a) a.value = '';
+      if (b) b.value = '';
+      if (c) c.checked = false;
+    }
+    for (var j = 0; j < st.roster.length; j++) {
+      var r = st.roster[j], idx = r[0];
+      if (!rows[idx]) continue;
+      var ia = rows[idx].querySelector('.pinp');
+      var ib = rows[idx].querySelector('.dupr-inp');
+      var ic = rows[idx].querySelector('.checkin-chk');
+      if (ia) ia.value   = r[1];
+      if (ib) ib.value   = r[2] || '';
+      if (ic) ic.checked = !!r[3];
+    }
+  }
+  if (st.players) players = st.players.slice();
+  if (st.ladder) {
+    ladderState.registry     = st.ladder.registry     || {};
+    ladderState.courts       = st.ladder.courts       || [];
+    ladderState.courtRound   = st.ladder.courtRound   || {};
+    ladderState.scores       = st.ladder.scores       || {};
+    ladderState.playerStatus = st.ladder.playerStatus || {};
+    if (!ladderState.courtSettings)  ladderState.courtSettings  = {};
+    if (!ladderState.recentPartners) ladderState.recentPartners = {};
+  }
+  if (st.sets) {
+    set1Courts = st.sets.s1 || [];
+    set2Courts = st.sets.s2 || [];
+    set3Courts = st.sets.s3 || [];
+  }
+  onConfigChange();
+  updateCount();
+}
+
+// ---------- network ----------
+function sessPush(full) {
+  if (!SESS.code) return;
+  var body;
+  if (full) {
+    body = JSON.stringify({type:'sess_put', code:SESS.code, rev:SESS.rev + 1, state:serializeState()});
+  } else {
+    var ci  = SESS.courtIdx;
+    var cr  = ladderState.courtRound[ci] || 1;
+    var key = 'c' + ci + 'r' + cr;
+    body = JSON.stringify({
+      type:'sess_patch', code:SESS.code, court:ci, round:cr, key:key,
+      score: ladderState.scores[key] || {}
+    });
+  }
+  SESS.status = 'sending';
+  paintSessBar();
+  fetch(SHEETS_URL, {method:'POST', headers:{'Content-Type':'text/plain'}, body:body})
+    .then(function(){ SESS.status = 'ok'; SESS.lastSeen = new Date(); if (full) SESS.rev++; paintSessBar(); })
+    .catch(function(){ SESS.status = 'error'; paintSessBar(); });
+}
+
+function sessPushSoon(full) {
+  if (SESS.role === 'solo' || !SESS.code) return;
+  clearTimeout(SESS.pushJob);
+  SESS.pushJob = setTimeout(function(){ sessPush(full); }, 700);
+}
+
+function sessPull(force) {
+  if (!SESS.code || SESS.busy) return;
+  SESS.busy = true;
+  fetch(sessUrl({action:'sess_get', code:SESS.code}), {method:'GET', redirect:'follow'})
+    .then(function(r){ return r.text(); })
+    .then(function(t) {
+      SESS.busy = false;
+      SESS.lastSeen = new Date();
+      var d = null;
+      try { d = JSON.parse(t); } catch (e) { SESS.status = 'error'; paintSessBar(); return; }
+      if (!d || !d.ok) { SESS.status = 'nosession'; paintSessBar(); return; }
+      SESS.status = 'ok';
+      if (force || d.rev > SESS.rev) {
+        SESS.rev = d.rev;
+        applyState(d.state);
+        if (SESS.role === 'court' && SESS.courtIdx !== null) {
+          ladderState.focusCourt = SESS.courtIdx;
+        }
+        renderLadder();
+      }
+      paintSessBar();
+    })
+    .catch(function(){ SESS.busy = false; SESS.status = 'error'; paintSessBar(); });
+}
+
+function sessStartPolling() {
+  clearInterval(SESS.timer);
+  SESS.timer = setInterval(function(){ sessPull(false); }, 5000);
+}
+
+// ---------- host / join ----------
+function sessHostStart() {
+  SESS.code = makeSessionCode();
+  SESS.role = 'host';
+  SESS.rev  = 0;
+  sessPush(true);
+  sessStartPolling();
+  paintSessBar();
+  applyGates();
+  alert('Live session started.\n\nSession code:  ' + SESS.code +
+        '\n\nOn each courtside device open the Ladder tab, enter this code and pick its court.');
+}
+
+function sessHostStop() {
+  clearInterval(SESS.timer);
+  SESS.timer = null;
+  SESS.role = 'solo';
+  SESS.code = '';
+  SESS.status = '';
+  paintSessBar();
+  applyGates();
+  renderLadder();
+}
+
+function sessJoin() {
+  var codeEl  = el('joinCode');
+  var courtEl = el('joinCourt');
+  var code = codeEl ? codeEl.value.trim().toUpperCase() : '';
+  var ci   = courtEl ? parseInt(courtEl.value) : NaN;
+  if (!code) { alert('Enter the session code shown on the host device.'); return; }
+  if (isNaN(ci)) { alert('Pick which court this device is for.'); return; }
+  SESS.code = code;
+  SESS.role = 'court';
+  SESS.courtIdx = ci;
+  SESS.rev = -1;
+  sessPull(true);
+  sessStartPolling();
+}
+
+function sessLeave() {
+  clearInterval(SESS.timer);
+  SESS.timer = null;
+  SESS.role = 'solo';
+  SESS.courtIdx = null;
+  SESS.code = '';
+  ladderState.focusCourt = null;
+  renderLadder();
+}
+
+// ---------- session bar ----------
+function hostSessToggle() {
+  if (SESS.role === 'host') sessHostStop(); else sessHostStart();
+  paintHostSync();
+}
+
+function paintHostSync() {
+  var box = el('hostSync');
+  if (box) box.style.display = isAuthed ? 'flex' : 'none';
+  var info = el('hostSessInfo'), btn = el('hostSessBtn');
+  if (!info || !btn) return;
+  if (SESS.role === 'host') {
+    info.innerHTML = 'Session code <span class="code">' + SESS.code + '</span> &mdash; enter this on each courtside device (Ladder tab) and pick its court.';
+    btn.textContent = 'Stop Live Session';
+  } else {
+    info.textContent = 'Not started \u2014 courtside devices cannot see this session yet.';
+    btn.textContent = 'Start Live Session';
+  }
+}
+
+function sessBarMarkup() {
+  var o = '';
+  var dotCol = SESS.status === 'ok' ? '#4ade80'
+             : SESS.status === 'sending' ? '#5ce1ff'
+             : SESS.status === 'error' ? '#ff7b7b'
+             : SESS.status === 'nosession' ? '#ffb74d' : '#8fb8d4';
+  var seen = SESS.lastSeen
+    ? SESS.lastSeen.getHours() + ':' + (SESS.lastSeen.getMinutes() < 10 ? '0' : '') + SESS.lastSeen.getMinutes() + ':' + (SESS.lastSeen.getSeconds() < 10 ? '0' : '') + SESS.lastSeen.getSeconds()
+    : '--';
+
+  o += '<div class="sess-bar" id="sessBar">';
+  if (SESS.role === 'solo') {
+    o += '<span class="sess-dot" style="background:#8fb8d4"></span>';
+    o += '<span class="sess-lbl">Offline &mdash; this device only</span>';
+    o += '<input class="sess-inp" id="joinCode" placeholder="Session code" maxlength="8" autocomplete="off">';
+    o += '<select class="sess-inp" id="joinCourt" style="min-width:120px">';
+    o += '<option value="">This court&hellip;</option>';
+    var nC = ladderState.courts.length || numCourtsConfig || 3;
+    for (var i = 0; i < nC; i++) o += '<option value="'+i+'">Court '+(i+1)+'</option>';
+    o += '</select>';
+    o += '<button class="sess-btn join" onclick="sessJoin()">Join Session</button>';
+  } else if (SESS.role === 'court') {
+    o += '<span class="sess-dot" style="background:'+dotCol+'"></span>';
+    o += '<span class="sess-lbl">Court device &mdash; <strong>'+SESS.code+'</strong> &middot; Court '+(SESS.courtIdx+1)+'</span>';
+    o += '<span class="sess-meta">updated '+seen+'</span>';
+    o += '<button class="sess-btn" onclick="sessPull(true)">Refresh Now</button>';
+    o += '<button class="sess-btn leave" onclick="sessLeave()">Leave</button>';
+  } else {
+    o += '<span class="sess-dot" style="background:'+dotCol+'"></span>';
+    o += '<span class="sess-lbl">Hosting &mdash; code <strong class="sess-code">'+SESS.code+'</strong></span>';
+    o += '<span class="sess-meta">updated '+seen+'</span>';
+    o += '<button class="sess-btn" onclick="sessPush(true)">Push Now</button>';
+    o += '<button class="sess-btn leave" onclick="sessHostStop()">Stop Session</button>';
+  }
+  o += '</div>';
+  return o;
+}
+
+function paintSessBar() {
+  var b = el('sessBar');
+  if (!b) return;
+  var host = b.parentNode;
+  var tmp = document.createElement('div');
+  tmp.innerHTML = sessBarMarkup();
+  host.replaceChild(tmp.firstChild, b);
 }
 
 // ═════════════════════════════════════════════════════════════════
