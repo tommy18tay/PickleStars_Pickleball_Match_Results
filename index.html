@@ -344,6 +344,31 @@ nav{background:var(--sf);border-bottom:1px solid var(--b);padding:0 20px;display
 .jm-btn.host{background:linear-gradient(135deg,#4ade80,#1a8a50);color:#062}
 .jm-btn.alt{background:rgba(255,255,255,.08);border:2px solid rgba(255,255,255,.2);color:#cfe6f5}
 .jm-err{display:none;margin-top:11px;padding:11px 13px;background:rgba(255,123,123,.14);border:1.5px solid rgba(255,123,123,.45);border-radius:10px;font-size:14px;color:#ff9b9b;font-weight:600;line-height:1.5}
+
+.gen-inp,.age-inp{display:none;flex-shrink:0;background:var(--sf2);border:1.5px solid var(--b2);color:var(--tx);padding:3px 4px;border-radius:5px;font-family:'DM Sans',sans-serif;font-size:12px;outline:none;cursor:pointer}
+.gen-inp{width:52px}
+.age-inp{width:68px}
+.gen-badge{display:inline-block;font-size:11px;font-weight:700;padding:2px 7px;border-radius:5px}
+.gen-m{background:#e6f0fb;color:#1a5a8a;border:1px solid #a8c8e8}
+.gen-f{background:#fbe8f3;color:#9a1a6a;border:1px solid #e8a8d0}
+.gen-x{background:#f0f0f0;color:#8a8a8a;border:1px solid #d0d0d0}
+.age-badge{display:inline-block;font-size:11px;font-weight:600;padding:2px 7px;border-radius:5px;background:#eef3e8;color:#4a6a2a;border:1px solid #c0d8a8}
+#pgLadder .gen-m{background:rgba(92,180,255,.18);color:#8fd0ff;border-color:rgba(92,180,255,.45)}
+#pgLadder .gen-f{background:rgba(255,140,200,.18);color:#ffa8d8;border-color:rgba(255,140,200,.45)}
+#pgLadder .gen-x{background:rgba(255,255,255,.08);color:#9dc4dc;border-color:rgba(255,255,255,.18)}
+#pgLadder .age-badge{background:rgba(160,220,120,.15);color:#b8e89a;border-color:rgba(160,220,120,.4)}
+.ldr-ask{margin-top:14px;padding:18px;background:rgba(255,183,77,.13);border:2.5px solid rgba(255,183,77,.5);border-radius:15px}
+.ldr-askt{font-size:18px;font-weight:700;color:#ffc266;margin-bottom:8px}
+.ldr-askb{font-size:15px;color:#e8d8b8;line-height:1.55;margin-bottom:14px}
+.ldr-askrow{display:flex;gap:11px;flex-wrap:wrap}
+.ldr-askbtn{font-family:'DM Sans',sans-serif;font-size:16px;font-weight:700;padding:13px 20px;border-radius:11px;cursor:pointer;min-height:52px;border:2.5px solid;background:none}
+.ldr-askbtn.yes{border-color:#4ade80;color:#7ef0a8}
+.ldr-askbtn.yes:hover{background:rgba(74,222,128,.18)}
+.ldr-askbtn.no{border-color:#5ce1ff;color:#5ce1ff}
+.ldr-askbtn.no:hover{background:rgba(92,225,255,.18)}
+
+.ldr-fix{width:72px;height:48px;font-family:'DM Mono',monospace;font-size:22px;font-weight:700;text-align:center;background:rgba(0,0,0,.35);border:2px solid rgba(255,183,77,.45);border-radius:10px;color:#fff;outline:none;flex-shrink:0}
+.ldr-fix:focus{border-color:#ffc266;box-shadow:0 0 0 3px rgba(255,183,77,.2)}
 </style>
 </head>
 <body>
@@ -440,6 +465,14 @@ nav{background:var(--sf);border-bottom:1px solid var(--b);padding:0 20px;display
       <div class="cfg-box">
         <div class="cfg-label">Player DUPR Rating</div>
         <label class="chk-row"><input type="checkbox" id="showDupr" onchange="onConfigChange()"> Show DUPR field</label>
+      </div>
+      <div class="cfg-box">
+        <div class="cfg-label">Gender Grouping</div>
+        <label class="chk-row"><input type="checkbox" id="useGender" onchange="onConfigChange()"> Required</label>
+      </div>
+      <div class="cfg-box">
+        <div class="cfg-label">Age Grouping</div>
+        <label class="chk-row"><input type="checkbox" id="useAge" onchange="onConfigChange()"> Required</label>
       </div>
     </div>
 
@@ -579,11 +612,12 @@ var drawResults     = {};
 var drawDone        = false;
 var drawOrder       = [];
 var revealedSet     = new Set();
-var ladderState     = {registry:{}, courts:[], courtRound:{}, scores:{}, playerStatus:{}, recentPartners:{}, courtSettings:{}, focusCourt:null};
+var ladderState     = {registry:{}, courts:[], courtRound:{}, scores:{}, playerStatus:{}, recentPartners:{}, courtSettings:{}, focusCourt:null, genderDecision:{}, snaps:{}};
 
 var NAMES = ['Alex','Alan','Parker','Aaron','Felicia','Kumbo','Jericio','Peter',
   'Rachel','Ben','Clara','David','Emma','Frank','Grace','Henry',
   'Ivan','Julia','Kevin','Linda','Marco','Nina','Oscar','Priya'];
+var AGE_BANDS = ['5-12','13-20','21-30','31-40','41-50','51-60','61+'];
 var SAMPLE_DUPR = ['NR','2.5','2.3','2.2','2.4','2.1','2.3','2.33','2.7','2.8',
   '2.65','2.13','2.56','NR','2.98','2.79','2.45','2.63','3.15','3.3','3.45','2.9','3.05','2.75'];
 
@@ -708,6 +742,8 @@ function getConfig() {
     assignType: el('assignType') ? el('assignType').value : 'roundrobin',
     gameType:   el('gameType')   ? el('gameType').value   : 'points',
     showDupr:   el('showDupr')   ? el('showDupr').checked : false,
+    useGender:  el('useGender')  ? el('useGender').checked : false,
+    useAge:     el('useAge')     ? el('useAge').checked    : false,
     maxPts:     parseInt(el('maxPts') ? el('maxPts').value : '15') || 15,
     band1:      parseFloat(el('band1') ? el('band1').value : '2.499') || 2.499,
     band2:      parseFloat(el('band2') ? el('band2').value : '2.999') || 2.999,
@@ -741,9 +777,13 @@ function getPlayerData() {
     if (!name) continue;
     var dEl = rows[i].querySelector('.dupr-inp');
     var cEl = rows[i].querySelector('.checkin-chk');
+    var gEl = rows[i].querySelector('.gen-inp');
+    var aEl = rows[i].querySelector('.age-inp');
     out.push({
       name: name,
       dupr: dEl ? dEl.value.trim() : '',
+      gen:  gEl ? gEl.value : '',
+      age:  (aEl && aEl.value !== '') ? parseInt(aEl.value) : -1,
       checkedIn: cEl ? cEl.checked : false,
       globalIdx: i
     });
@@ -763,6 +803,10 @@ function onConfigChange() {
   for (var i = 0; i < dInps.length; i++) dInps[i].style.display = showD ? 'inline-block' : 'none';
   var cLbls = document.querySelectorAll('.checkin-lbl');
   for (var j = 0; j < cLbls.length; j++) cLbls[j].style.display = isLadder ? 'flex' : 'none';
+  var gInps = document.querySelectorAll('.gen-inp');
+  for (var g1 = 0; g1 < gInps.length; g1++) gInps[g1].style.display = cfg.useGender ? 'inline-block' : 'none';
+  var aInps = document.querySelectorAll('.age-inp');
+  for (var a1 = 0; a1 < aInps.length; a1++) aInps[a1].style.display = cfg.useAge ? 'inline-block' : 'none';
 
   if (el('duprBandsPanel')) el('duprBandsPanel').style.display = isDupr ? 'block' : 'none';
   if (el('maxPtsBox'))      el('maxPtsBox').style.display      = isLadder ? 'flex' : 'none';
@@ -1193,10 +1237,11 @@ function generateLadder(pData, cfg) {
   var sorted = pData.slice().sort(function(a,b){ return getDuprValue(a.dupr) - getDuprValue(b.dupr); });
   var anyIn  = pData.some(function(p){ return p.checkedIn; });
 
-  ladderState = {registry:{}, courts:[], courtRound:{}, scores:{}, playerStatus:{}, recentPartners:{}, courtSettings:{}, focusCourt:null};
+  ladderState = {registry:{}, courts:[], courtRound:{}, scores:{}, playerStatus:{}, recentPartners:{}, courtSettings:{}, focusCourt:null, genderDecision:{}, snaps:{}};
 
   pData.forEach(function(p) {
-    ladderState.registry[p.name] = {name:p.name, dupr:p.dupr, globalIdx:p.globalIdx};
+    ladderState.registry[p.name] = {name:p.name, dupr:p.dupr, globalIdx:p.globalIdx,
+                                    gen:p.gen || '', age:(typeof p.age === 'number' ? p.age : -1)};
     ladderState.playerStatus[p.name] = (!anyIn || p.checkedIn) ? 'active' : 'waiting';
   });
 
@@ -1242,6 +1287,131 @@ function arrangeTeams(f4) {
     if (s < bestScore) { bestScore = s; best = o; }
   }
   return best;
+}
+
+// ═════════════════════════════════════════════════════════════════
+// GENDER + AGE AWARE PAIRING
+//
+// Gender rule (when Gender Grouping is required):
+//   4 of the same gender  -> any pairing
+//   2 male + 2 female     -> teams MUST be mixed (M+F vs M+F), never MM vs FF
+//   3+1 split             -> ask the host: proceed, or swap in the next player
+//                            of the majority gender and send the odd player
+//                            to the front of the next queue
+//
+// Age rule (when Age Grouping is required):
+//   Rather than segregating bands - which would break the queue and can leave
+//   players unable to play at all - the two teams are BALANCED so their
+//   combined age profile matches. An older player is paired with a younger one
+//   on each side, so neither team is stacked. A warning shows when the four
+//   span more than two bands.
+// ═════════════════════════════════════════════════════════════════
+var PAIRINGS = [[0,1,2,3],[0,2,1,3],[0,3,1,2]];
+
+function pGen(name) {
+  var r = ladderState.registry[name];
+  return (r && r.gen) ? r.gen : '';
+}
+function pAge(name) {
+  var r = ladderState.registry[name];
+  return (r && typeof r.age === 'number') ? r.age : -1;
+}
+
+function tagGA(reg, cfg) {
+  var s = '';
+  if (cfg.useGender) {
+    var g = (reg && reg.gen) ? reg.gen : '';
+    s += ' <span class="gen-badge '+(g==='M'?'gen-m':g==='F'?'gen-f':'gen-x')+'">'+(g||'?')+'</span>';
+  }
+  if (cfg.useAge && reg && typeof reg.age === 'number' && reg.age >= 0) {
+    s += ' <span class="age-badge">'+AGE_BANDS[reg.age]+'</span>';
+  }
+  return s;
+}
+
+function genderClass(four) {
+  var m = 0, f = 0, u = 0;
+  for (var i = 0; i < four.length; i++) {
+    var g = pGen(four[i]);
+    if (g === 'M') m++; else if (g === 'F') f++; else u++;
+  }
+  if (u > 0) return 'unknown';
+  if (m === 4) return '4M';
+  if (f === 4) return '4F';
+  if (m === 2 && f === 2) return '2M2F';
+  return '3-1';
+}
+
+// Pick the best legal arrangement of a given four
+function arrangeFour(four, cfg) {
+  if (four.length < 4) return four.slice();
+  var cls = genderClass(four);
+  var best = null, bestScore = null;
+  for (var i = 0; i < PAIRINGS.length; i++) {
+    var p = PAIRINGS[i];
+    var a = four[p[0]], b = four[p[1]], c = four[p[2]], d = four[p[3]];
+    if (cfg.useGender && cls === '2M2F') {
+      if (pGen(a) === pGen(b)) continue;   // team A must be mixed
+      if (pGen(c) === pGen(d)) continue;   // team B must be mixed
+    }
+    var score = 0;
+    score += ((ladderState.recentPartners[a+'|'+b] || 0) +
+              (ladderState.recentPartners[c+'|'+d] || 0)) * 1000;
+    if (cfg.useAge) {
+      var aa = pAge(a), ab = pAge(b), ac = pAge(c), ad = pAge(d);
+      if (aa >= 0 && ab >= 0 && ac >= 0 && ad >= 0) {
+        score += Math.abs((aa + ab) - (ac + ad)) * 10;          // balance the sides
+        var mx = Math.max(aa, ab, ac, ad), mn = Math.min(aa, ab, ac, ad);
+        score += (mx - mn);                                      // tie-break
+      }
+    }
+    if (bestScore === null || score < bestScore) { bestScore = score; best = [a,b,c,d]; }
+  }
+  return best || four.slice();
+}
+
+function ageSpread(four) {
+  var vals = [];
+  for (var i = 0; i < four.length; i++) { var v = pAge(four[i]); if (v >= 0) vals.push(v); }
+  if (vals.length < 2) return 0;
+  return Math.max.apply(null, vals) - Math.min.apply(null, vals);
+}
+
+// Decide the foursome for a court. Returns
+//   {four:[4 names] | null, rest:[queue behind them], ask:{...} | null}
+function pickFoursome(queue, cfg, decision) {
+  if (queue.length < 4) return {four:null, rest:queue.slice(), ask:null};
+  var four = queue.slice(0, 4);
+
+  if (cfg.useGender && genderClass(four) === '3-1' && decision !== 'proceed') {
+    var gs = four.map(pGen);
+    var maj = gs.filter(function(g){ return g === 'M'; }).length === 3 ? 'M' : 'F';
+    var minor = null;
+    for (var i = 0; i < four.length; i++) if (pGen(four[i]) !== maj) { minor = four[i]; break; }
+    var sub = null;
+    for (var j = 4; j < queue.length; j++) {
+      if (pGen(queue[j]) === maj && ladderState.playerStatus[queue[j]] === 'active') { sub = queue[j]; break; }
+    }
+    if (decision === 'swap' && sub) {
+      var nf = four.filter(function(n){ return n !== minor; });
+      nf.push(sub);
+      var nrest = [minor];                       // odd player goes first in the next queue
+      for (var k = 4; k < queue.length; k++) if (queue[k] !== sub) nrest.push(queue[k]);
+      return {four: arrangeFour(nf, cfg), rest: nrest, ask: null};
+    }
+    return {four: null, rest: queue.slice(4), ask: {maj: maj, minor: minor, sub: sub}};
+  }
+
+  return {four: arrangeFour(four, cfg), rest: queue.slice(4), ask: null};
+}
+
+function setGenderDecision(btn) {
+  var key = btn.getAttribute('data-key');
+  var d   = btn.getAttribute('data-dec');
+  if (!ladderState.genderDecision) ladderState.genderDecision = {};
+  ladderState.genderDecision[key] = d;
+  if (SESS.role !== 'solo') sessPushSoon(SESS.role !== 'court');
+  renderLadder();
 }
 
 function ladderActive(ci) {
@@ -1319,23 +1489,42 @@ function renderLadder() {
     if (!ladderState.scores[key]) ladderState.scores[key] = {sA:'', sB:''};
     var sc = ladderState.scores[key];
 
-    // teams = front 4 of the FIFO queue, fixed per round, split to avoid repeat partners
+    // teams = front 4 of the FIFO queue, fixed per round, honouring the
+    // gender and age grouping rules when those are switched on
+    if (!ladderState.genderDecision) ladderState.genderDecision = {};
+    var decision = ladderState.genderDecision[key];
     var first4 = act.slice(0, 4);
     var stored = (sc.tA && sc.tB) ? sc.tA.concat(sc.tB) : null;
     var sameSet = false;
-    if (stored && stored.length === first4.length) {
-      sameSet = stored.every(function(n){ return first4.indexOf(n) !== -1; }) &&
-                first4.every(function(n){ return stored.indexOf(n) !== -1; });
+    if (stored && stored.length === 4 && first4.length === 4) {
+      sameSet = stored.every(function(n){ return act.indexOf(n) !== -1; });
     }
+    var askInfo = null;
     if (first4.length === 4 && !sameSet) {
-      var arranged = arrangeTeams(first4);
-      sc.tA = arranged.slice(0, 2);
-      sc.tB = arranged.slice(2, 4);
-      var restQ = ct.playerNames.filter(function(n){ return arranged.indexOf(n) === -1; });
-      ct.playerNames = arranged.concat(restQ);
-      all = ct.playerNames;
-      act = ladderActive(ci);
+      var pickRes = pickFoursome(act, cfg, decision);
+      if (pickRes.ask) {
+        askInfo = pickRes.ask;
+        delete sc.tA; delete sc.tB;
+      } else if (pickRes.four) {
+        sc.tA = pickRes.four.slice(0, 2);
+        sc.tB = pickRes.four.slice(2, 4);
+        var chosen = pickRes.four;
+        var restQ = ct.playerNames.filter(function(n){ return chosen.indexOf(n) === -1; });
+        // keep the queue order the picker decided (odd player first if swapped)
+        var ordered = [];
+        for (var oq = 0; oq < pickRes.rest.length; oq++) {
+          if (restQ.indexOf(pickRes.rest[oq]) !== -1) ordered.push(pickRes.rest[oq]);
+        }
+        for (var oq2 = 0; oq2 < restQ.length; oq2++) {
+          if (ordered.indexOf(restQ[oq2]) === -1) ordered.push(restQ[oq2]);
+        }
+        ct.playerNames = chosen.concat(ordered);
+        all = ct.playerNames;
+        act = ladderActive(ci);
+      }
     } else if (first4.length < 4) {
+      delete sc.tA; delete sc.tB;
+    } else if (stored && !sameSet) {
       delete sc.tA; delete sc.tB;
     }
     var tA  = (sc.tA || []).slice();
@@ -1366,14 +1555,29 @@ function renderLadder() {
 
       o += '<div class="ldr-match" style="margin-top:0">';
       o += '<div class="ldr-mtitle">&#127992; Round '+cr+' &middot; Live Match</div>';
+      if (cfg.useGender) {
+        var gcl = genderClass(tA.concat(tB));
+        var glabel = gcl === '2M2F' ? 'Mixed doubles &middot; one M + one F each side'
+                   : gcl === '4M'   ? 'All male'
+                   : gcl === '4F'   ? 'All female'
+                   : gcl === '3-1'  ? 'Uneven split &mdash; approved by host'
+                   : 'Gender not set for all four players';
+        o += '<div style="text-align:center;font-size:14px;color:#9dd9f5;margin:-6px 0 12px">'+glabel+'</div>';
+      }
+      if (cfg.useAge) {
+        var spr = ageSpread(tA.concat(tB));
+        if (spr > 2) {
+          o += '<div style="text-align:center;font-size:14px;color:#ffc266;margin:-4px 0 12px">&#9888; Spans '+(spr+1)+' age bands &mdash; sides balanced as evenly as possible</div>';
+        }
+      }
       o += '<div class="ldr-team"><div class="ldr-tinfo"><div class="ldr-tlabel">TEAM A</div>';
-      o += '<div class="ldr-player">'+tA[0]+' <span class="ldr-dupr">'+(rA0.dupr||'NR')+'</span></div>';
-      o += '<div class="ldr-player">'+tA[1]+' <span class="ldr-dupr">'+(rA1.dupr||'NR')+'</span></div>';
+      o += '<div class="ldr-player">'+tA[0]+' <span class="ldr-dupr">'+(rA0.dupr||'NR')+'</span>'+tagGA(rA0,cfg)+'</div>';
+      o += '<div class="ldr-player">'+tA[1]+' <span class="ldr-dupr">'+(rA1.dupr||'NR')+'</span>'+tagGA(rA1,cfg)+'</div>';
       o += '</div><input class="ldr-sinp" type="text" inputmode="numeric" pattern="[0-9]*" readonly placeholder="0" value="'+sA+'" data-key="'+key+'" data-side="a" data-team="'+tA.join(' &amp; ')+'" onclick="openScorePicker(this)" onwheel="wheelScore(event,this)" ontouchstart="touchScoreStart(event,this)" ontouchmove="touchScoreMove(event,this)"></div>';
       o += '<div class="ldr-vs">VS</div>';
       o += '<div class="ldr-team"><div class="ldr-tinfo"><div class="ldr-tlabel">TEAM B</div>';
-      o += '<div class="ldr-player">'+tB[0]+' <span class="ldr-dupr">'+(rB0.dupr||'NR')+'</span></div>';
-      o += '<div class="ldr-player">'+tB[1]+' <span class="ldr-dupr">'+(rB1.dupr||'NR')+'</span></div>';
+      o += '<div class="ldr-player">'+tB[0]+' <span class="ldr-dupr">'+(rB0.dupr||'NR')+'</span>'+tagGA(rB0,cfg)+'</div>';
+      o += '<div class="ldr-player">'+tB[1]+' <span class="ldr-dupr">'+(rB1.dupr||'NR')+'</span>'+tagGA(rB1,cfg)+'</div>';
       o += '</div><input class="ldr-sinp" type="text" inputmode="numeric" pattern="[0-9]*" readonly placeholder="0" value="'+sB+'" data-key="'+key+'" data-side="b" data-team="'+tB.join(' &amp; ')+'" onclick="openScorePicker(this)" onwheel="wheelScore(event,this)" ontouchstart="touchScoreStart(event,this)" ontouchmove="touchScoreMove(event,this)"></div>';
 
       o += '<div class="ldr-diff" id="d_'+key+'" style="';
@@ -1384,6 +1588,28 @@ function renderLadder() {
         o += ' &nbsp;&nbsp;|&nbsp;&nbsp; ';
         o += '<span class="'+(dB>=0?'pos':'neg')+'">'+(dB>=0?'+':'')+dB+'</span> <span class="lbl">Team B</span>';
       } else o += 'display:none">';
+      o += '</div></div>';
+    } else if (askInfo) {
+      var other = askInfo.maj === 'M' ? 'female' : 'male';
+      var majw  = askInfo.maj === 'M' ? 'male' : 'female';
+      o += '<div class="ldr-ask">';
+      o += '<div class="ldr-askt">&#9888; Uneven gender split on this court</div>';
+      o += '<div class="ldr-askb">The next four in the queue are <strong>3 '+majw+' + 1 '+other+'</strong>';
+      o += ' (<strong>'+askInfo.minor+'</strong> is the only '+other+').<br>';
+      o += 'That would put 3 '+majw+' against 1 '+other+', which is not an even match.<br><br>';
+      if (askInfo.sub) {
+        o += 'Is it OK to play 3 '+majw+' + 1 '+other+' anyway? If not, <strong>'+askInfo.sub+'</strong> ';
+        o += '(next '+majw+' in the queue) can come in instead, and <strong>'+askInfo.minor+'</strong> ';
+        o += 'moves to the front of the next queue.';
+      } else {
+        o += 'There is no other '+majw+' waiting, so no substitute is available. ';
+        o += 'You can play it as is, or mark someone Active / move a player in from another court.';
+      }
+      o += '</div><div class="ldr-askrow">';
+      o += '<button class="ldr-askbtn yes" data-key="'+key+'" data-dec="proceed" onclick="setGenderDecision(this)">Yes &mdash; play 3 '+majw+' + 1 '+other+'</button>';
+      if (askInfo.sub) {
+        o += '<button class="ldr-askbtn no" data-key="'+key+'" data-dec="swap" onclick="setGenderDecision(this)">No &mdash; bring in '+askInfo.sub+'</button>';
+      }
       o += '</div></div>';
     } else {
       o += '<div class="ldr-warn" style="margin-top:0">&#9888; Need 4 active players to start &mdash; currently '+act.length+'</div>';
@@ -1396,7 +1622,7 @@ function renderLadder() {
       for (var si = 0; si < sit.length; si++) {
         var sn = sit[si], sr = ladderState.registry[sn]||{dupr:''};
         o += '<div class="ldr-qcard"><div class="ldr-qpos">#'+(si+1)+'</div><div class="ldr-qname">'+sn+'</div>';
-        o += '<span class="ldr-dupr" style="font-size:12px">'+(sr.dupr||'NR')+'</span></div>';
+        o += '<span class="ldr-dupr" style="font-size:12px">'+(sr.dupr||'NR')+'</span>'+tagGA(sr,cfg)+'</div>';
       }
       o += '</div>';
     } else {
@@ -1423,6 +1649,13 @@ function renderLadder() {
       o += '<div class="'+rowCls+'">';
       o += dot;
       o += '<span class="ldr-dupr">'+(reg.dupr||'NR')+'</span>';
+      if (cfg.useGender) {
+        var gg = reg.gen || '';
+        o += '<span class="gen-badge '+(gg==='M'?'gen-m':gg==='F'?'gen-f':'gen-x')+'">'+(gg||'?')+'</span>';
+      }
+      if (cfg.useAge && typeof reg.age === 'number' && reg.age >= 0) {
+        o += '<span class="age-badge">'+AGE_BANDS[reg.age]+'</span>';
+      }
       o += '<span class="ldr-pname">'+nm+'</span>';
       if (isPlaying)             o += '<span class="ldr-pill playing">ON COURT</span>';
       else if (st === 'active')  o += '<span class="ldr-pill queue">QUEUE #'+(qPos+1)+'</span>';
@@ -1437,7 +1670,34 @@ function renderLadder() {
     // ───── 4. SETTINGS DRAWER (gear) ─────
     if (sOpen && !isCourtDev) {
       o += '<div class="ldr-panel">';
-      o += '<div class="ldr-phdr">&#9881; Court Settings &mdash; Move Player</div>';
+
+      // ---- result corrections ----
+      var hist = courtHistory(ci);
+      var snapN = (ladderState.snaps && ladderState.snaps[ci]) ? ladderState.snaps[ci].length : 0;
+      o += '<div class="ldr-phdr">&#9998; Fix a Wrong Result</div>';
+      o += '<div class="ldr-pnote">Change any score below and the standings update straight away. ';
+      o += 'Use <strong>Undo Last Round</strong> if the players also need to go back to their previous courts.</div>';
+      if (snapN) {
+        o += '<button class="ldr-askbtn no" style="margin-bottom:12px" data-court="'+ci+'" onclick="undoRound(this)">&#8630; Undo Last Round (Round '+ladderState.snaps[ci][snapN-1].round+')</button>';
+      }
+      if (!hist.length) {
+        o += '<div style="font-size:15px;color:#8fb8d4;margin-bottom:14px">No completed rounds on this court yet.</div>';
+      } else {
+        for (var hi = 0; hi < hist.length; hi++) {
+          var h = hist[hi];
+          o += '<div class="ldr-mrow">';
+          o += '<span class="ldr-dupr">R'+h.round+'</span>';
+          o += '<span class="ldr-mname" style="font-size:15px">'+h.sc.tA.join(' &amp; ')+'</span>';
+          o += '<input class="ldr-fix" type="number" min="0" max="'+cfg.maxPts+'" value="'+h.sc.sA+'" data-fkey="'+h.key+'" data-fside="a" onchange="fixScore(this)">';
+          o += '<span style="color:#8fb8d4;font-weight:700">&ndash;</span>';
+          o += '<input class="ldr-fix" type="number" min="0" max="'+cfg.maxPts+'" value="'+h.sc.sB+'" data-fkey="'+h.key+'" data-fside="b" onchange="fixScore(this)">';
+          o += '<span class="ldr-mname" style="font-size:15px;text-align:right">'+h.sc.tB.join(' &amp; ')+'</span>';
+          o += '</div>';
+        }
+      }
+      o += '<div style="height:1px;background:rgba(255,255,255,.14);margin:16px 0"></div>';
+
+      o += '<div class="ldr-phdr">&#9881; Move Player</div>';
       o += '<div class="ldr-pnote">Pick a destination court for any player. They join the back of that court\'s queue.</div>';
       if (!all.length) o += '<div style="font-size:15px;color:#8fb8d4">No players on this court.</div>';
       for (var mi = 0; mi < all.length; mi++) {
@@ -1593,6 +1853,66 @@ function applyGates() {
   var bar = el('hostBar');
   if (bar) bar.style.display = isAuthed ? 'flex' : 'none';
   paintHostSync();
+}
+
+// ═════════════════════════════════════════════════════════════════
+// RESULT CORRECTIONS
+//   Fix a score  -> updates standings and points immediately.
+//   Undo round   -> also rolls the court movement back, so the players
+//                   return to where they were before Next Round was pressed.
+// ═════════════════════════════════════════════════════════════════
+function fixScore(inp) {
+  var key  = inp.getAttribute('data-fkey');
+  var side = inp.getAttribute('data-fside');
+  var cfg  = getConfig();
+  var sc   = ladderState.scores[key];
+  if (!sc) return;
+  var v = parseInt(inp.value);
+  if (isNaN(v)) { inp.value = side === 'a' ? sc.sA : sc.sB; return; }
+  if (v < 0) v = 0;
+  if (v > cfg.maxPts) v = cfg.maxPts;
+  inp.value = String(v);
+  if (side === 'a') sc.sA = String(v); else sc.sB = String(v);
+  if (SESS.role !== 'solo') sessPushSoon(SESS.role !== 'court');
+  renderLadder();
+}
+
+function undoRound(btn) {
+  var ci = parseInt(btn.getAttribute('data-court'));
+  if (isNaN(ci)) return;
+  var stack = (ladderState.snaps && ladderState.snaps[ci]) ? ladderState.snaps[ci] : [];
+  if (!stack.length) { alert('Nothing to undo on this court.'); return; }
+  var snap = stack[stack.length - 1];
+  if (!confirm('Undo Round ' + snap.round + ' on ' + ladderState.courts[ci].label + '?\n\n' +
+               'Players move back to where they were, the round counter steps back, ' +
+               'and you can re-enter the score.')) return;
+  stack.pop();
+
+  for (var c2 = 0; c2 < ladderState.courts.length && c2 < snap.layout.length; c2++) {
+    ladderState.courts[c2].playerNames = snap.layout[c2].slice();
+  }
+  ladderState.courtRound = JSON.parse(JSON.stringify(snap.rounds));
+  if (ladderState.scores[snap.key]) {
+    ladderState.scores[snap.key].sA = '';
+    ladderState.scores[snap.key].sB = '';
+    ladderState.scores[snap.key].tA = snap.score.tA.slice();
+    ladderState.scores[snap.key].tB = snap.score.tB.slice();
+  }
+  if (SESS.role !== 'solo') sessPushSoon(true);
+  renderLadder();
+}
+
+function courtHistory(ci) {
+  var out = [];
+  for (var key in ladderState.scores) {
+    var m = key.match(/c(\d+)r(\d+)/);
+    if (!m || parseInt(m[1]) !== ci) continue;
+    var sc = ladderState.scores[key];
+    if (!sc || !sc.tA || !sc.tB || sc.sA === '' || sc.sB === '') continue;
+    out.push({key: key, round: parseInt(m[2]), sc: sc});
+  }
+  out.sort(function(a, b){ return b.round - a.round; });
+  return out;
 }
 
 function toggleCourtSettings(btn) {
@@ -1815,6 +2135,18 @@ function ladderNextRound(btn) {
   });
 
   // remove the four who just played from this court
+  // snapshot for Undo Last Round (host device, local only)
+  if (!ladderState.snaps) ladderState.snaps = {};
+  if (!ladderState.snaps[ci]) ladderState.snaps[ci] = [];
+  ladderState.snaps[ci].push({
+    key: key,
+    round: cr,
+    layout: ladderState.courts.map(function(c2){ return c2.playerNames.slice(); }),
+    rounds: JSON.parse(JSON.stringify(ladderState.courtRound)),
+    score: {sA: sc.sA, sB: sc.sB, tA: tA.slice(), tB: tB.slice()}
+  });
+  if (ladderState.snaps[ci].length > 25) ladderState.snaps[ci].shift();
+
   var played = tA.concat(tB);
   ct.playerNames = ct.playerNames.filter(function(n) { return played.indexOf(n) === -1; });
 
@@ -2485,9 +2817,11 @@ function serializeState(includeAllScores) {
          el('band2') ? el('band2').value : '2.999',
          el('band3') ? el('band3').value : '3.499',
          numCourtsConfig,
-         (el('showDupr') && el('showDupr').checked) ? 1 : 0 ],
-    p: pd.map(function(x){ return [x.globalIdx, x.name, x.dupr, x.checkedIn ? 1 : 0]; }),
-    c: [], cd: [], cr: {}, s: {}, ps: ''
+         (el('showDupr')  && el('showDupr').checked)  ? 1 : 0,
+         (el('useGender') && el('useGender').checked) ? 1 : 0,
+         (el('useAge')    && el('useAge').checked)    ? 1 : 0 ],
+    p: pd.map(function(x){ return [x.globalIdx, x.name, x.dupr, x.checkedIn ? 1 : 0, x.gen || '', x.age]; }),
+    c: [], cd: [], cr: {}, s: {}, ps: '', gd: {}
   };
 
   // courts as arrays of roster positions
@@ -2523,6 +2857,9 @@ function serializeState(includeAllScores) {
     sArr.push(s2 === 'resting' ? 'r' : s2 === 'waiting' ? 'w' : 'a');
   }
   st.ps = sArr.join('');
+  if (ladderState.genderDecision) {
+    for (var gk in ladderState.genderDecision) st.gd[gk] = ladderState.genderDecision[gk];
+  }
   return st;
 }
 
@@ -2545,7 +2882,9 @@ function applyState(st) {
       numCourtsConfig = st.g[6];
       if (el('courtCount')) el('courtCount').textContent = numCourtsConfig;
     }
-    if (el('showDupr')) el('showDupr').checked = !!st.g[7];
+    if (el('showDupr'))  el('showDupr').checked  = !!st.g[7];
+    if (el('useGender')) el('useGender').checked = !!st.g[8];
+    if (el('useAge'))    el('useAge').checked    = !!st.g[9];
   }
 
   // rebuild the registration grid
@@ -2567,9 +2906,13 @@ function applyState(st) {
       var xa = rows[gi].querySelector('.pinp');
       var xb = rows[gi].querySelector('.dupr-inp');
       var xc = rows[gi].querySelector('.checkin-chk');
+      var xg = rows[gi].querySelector('.gen-inp');
+      var xh = rows[gi].querySelector('.age-inp');
       if (xa) xa.value   = r[1];
       if (xb) xb.value   = r[2] || '';
       if (xc) xc.checked = !!r[3];
+      if (xg) xg.value   = r[4] || '';
+      if (xh) xh.value   = (r[5] !== undefined && r[5] >= 0) ? String(r[5]) : '';
     }
   }
   players = names.slice();
@@ -2580,7 +2923,8 @@ function applyState(st) {
   if (st.p) {
     for (var k = 0; k < st.p.length; k++) {
       var rr = st.p[k];
-      ladderState.registry[rr[1]] = {name:rr[1], dupr:rr[2] || '', globalIdx:rr[0]};
+      ladderState.registry[rr[1]] = {name:rr[1], dupr:rr[2] || '', globalIdx:rr[0],
+                                      gen:rr[4] || '', age:(rr[5] !== undefined ? rr[5] : -1)};
       var ch = st.ps ? st.ps.charAt(k) : 'a';
       ladderState.playerStatus[rr[1]] = ch === 'r' ? 'resting' : ch === 'w' ? 'waiting' : 'active';
     }
@@ -2612,8 +2956,11 @@ function applyState(st) {
       };
     }
   }
+  ladderState.genderDecision = {};
+  if (st.gd) for (var gk2 in st.gd) ladderState.genderDecision[gk2] = st.gd[gk2];
   if (!ladderState.courtSettings)  ladderState.courtSettings  = {};
   if (!ladderState.recentPartners) ladderState.recentPartners = {};
+  if (!ladderState.snaps)          ladderState.snaps          = {};
 
   onConfigChange();
   updateCount();
@@ -3086,6 +3433,10 @@ function buildGrid() {
     h += '<span class="pnum">' + (i+1 < 10 ? '0'+(i+1) : (i+1)) + '</span>';
     h += '<input class="pinp" placeholder="Player ' + (i+1) + '" maxlength="26" oninput="updateCount()">';
     h += '<input class="dupr-inp" type="text" placeholder="DUPR" maxlength="6" title="DUPR rating or NR">';
+    h += '<select class="gen-inp" title="Gender"><option value="">M/F</option><option value="M">M</option><option value="F">F</option></select>';
+    h += '<select class="age-inp" title="Age group"><option value="">Age</option>';
+    for (var ab = 0; ab < AGE_BANDS.length; ab++) h += '<option value="'+ab+'">'+AGE_BANDS[ab]+'</option>';
+    h += '</select>';
     h += '<label class="checkin-lbl"><input type="checkbox" class="checkin-chk"> In</label>';
     h += '</div>';
   }
