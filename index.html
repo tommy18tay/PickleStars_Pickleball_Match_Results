@@ -430,6 +430,35 @@ nav{background:var(--sf);border-bottom:1px solid var(--b);padding:0 20px;display
 .ldr-auto input{width:20px;height:20px;accent-color:#4ade80;cursor:pointer}
 .ldr-autostat{font-size:12px;font-weight:600;color:#8fb8d4;font-family:'DM Mono',monospace}
 .ldr-auto.on .ldr-autostat{color:#9dd9a8}
+
+.jm-look{font-size:13px;font-weight:600;color:#8fb8d4;margin:-4px 0 11px;padding:8px 11px;background:rgba(255,255,255,.05);border-radius:9px;line-height:1.45}
+.jm-look.busy{color:#5ce1ff}
+.jm-look.good{color:#7ef0a8;background:rgba(74,222,128,.12)}
+.jm-look.bad{color:#ff9b9b;background:rgba(255,123,123,.12)}
+
+/* focused court: keep the match compact and centred so names and score sit
+   close together, and lift the type for reading from across the court */
+.focus-mode .ldr-match{max-width:860px;margin-left:auto;margin-right:auto;padding:22px}
+.focus-mode .ldr-team{gap:22px;align-items:center}
+.focus-mode .ldr-tinfo{flex:1 1 auto;min-width:0}
+.focus-mode .ldr-vs{margin:10px 0;font-size:26px;letter-spacing:.3em}
+.focus-mode .ldr-tlabel{font-size:15px;margin-bottom:4px}
+.focus-mode .ldr-player{font-size:30px;gap:14px;line-height:1.3}
+.focus-mode .ldr-pn2{flex:1 1 auto}
+.focus-mode .ldr-sinp{width:120px;height:100px;font-size:50px;border-width:4px}
+.focus-mode .ldr-mtitle{font-size:17px;margin-bottom:12px}
+.focus-mode .ldr-diff{font-size:19px;padding:14px;margin-top:12px}
+.focus-mode .ldr-queue{max-width:860px;margin-left:auto;margin-right:auto;padding:18px}
+.focus-mode .ldr-roster{max-width:860px;margin-left:auto;margin-right:auto}
+.focus-mode .ldr-nr,.focus-mode .ldr-ask{max-width:860px;margin-left:auto;margin-right:auto}
+@media(max-width:820px){
+  .focus-mode .ldr-player{font-size:24px}
+  .focus-mode .ldr-sinp{width:96px;height:84px;font-size:40px}
+  .focus-mode .ldr-match{padding:16px}
+}
+
+.ldr-rtog{display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;font-size:14px;font-weight:800;color:#9dc4dc;text-transform:uppercase;letter-spacing:.12em;padding:2px 0}
+.ldr-rtog:hover{color:#cfe6f5}
 </style>
 </head>
 <body>
@@ -1904,8 +1933,19 @@ function renderLadder() {
     o += '</div>';
 
     // ───── 3. COURT ROSTER ─────
+    // On a joined court device the roster is collapsed by default so the match
+    // and the queue get the whole screen. Tap the header to open it.
+    var rOpen = !isCourtDev || ladderState.rosterOpen;
     o += '<div class="ldr-roster">';
-    o += '<div class="ldr-sect">Court Roster &mdash; tap to change status or move court</div>';
+    if (isCourtDev) {
+      o += '<div class="ldr-rtog" onclick="toggleRoster()">';
+      o += '<span>Court Roster &amp; Status</span>';
+      o += '<span style="color:#5ce1ff">'+(rOpen ? '&#9650; hide' : '&#9660; show')+'</span>';
+      o += '</div>';
+    }
+    if (!rOpen) { o += '</div>'; }
+    if (rOpen) {
+    if (!isCourtDev) o += '<div class="ldr-sect">Court Roster &mdash; tap to change status or move court</div>';
     for (var pi = 0; pi < all.length; pi++) {
       var nm   = all[pi];
       var reg  = ladderState.registry[nm] || {dupr:''};
@@ -1932,6 +1972,7 @@ function renderLadder() {
       o += '</div>';
     }
     o += '</div>';
+    }
 
     // ───── 4. SETTINGS DRAWER (gear) ─────
     if (sOpen && !isCourtDev) {
@@ -2213,6 +2254,11 @@ function courtHistory(ci) {
   return out;
 }
 
+function toggleRoster() {
+  ladderState.rosterOpen = !ladderState.rosterOpen;
+  renderLadder();
+}
+
 function toggleCourtSettings(btn) {
   var ci = parseInt(btn.getAttribute('data-court'));
   if (isNaN(ci)) return;
@@ -2265,17 +2311,34 @@ function fitCourtToScreen() {
   }
   wrap.style.transform = '';
   wrap.style.width = '';
+  wrap.style.transformOrigin = '';
+
   var top   = wrap.getBoundingClientRect().top;
-  var avail = window.innerHeight - top - 14;
+  var avail = window.innerHeight - top - 12;
   var need  = wrap.scrollHeight;
-  if (need < 40 || avail < 120) return;
+  if (need < 40 || avail < 140) return;
+
+  // Scale to fill the screen - UP as well as down. A courtside tablet showing
+  // one court has spare room, so the type should grow to use it.
   var s = avail / need;
-  if (s > 1)    s = 1;                 // never blow it up past natural size
-  if (s < 0.45) s = 0.45;              // keep it readable
-  if (s < 0.995) {
-    wrap.style.transformOrigin = 'top left';
-    wrap.style.transform = 'scale(' + s.toFixed(3) + ')';
-    wrap.style.width = (100 / s).toFixed(2) + '%';
+  if (s > 1.9) s = 1.9;        // don't go silly
+  if (s < 0.6) s = 0.6;        // below this, let it scroll instead of shrinking
+  if (Math.abs(s - 1) < 0.02) return;
+
+  wrap.style.transformOrigin = 'top left';
+  wrap.style.transform = 'scale(' + s.toFixed(3) + ')';
+  wrap.style.width = (100 / s).toFixed(2) + '%';
+
+  // one correction pass: scaling changes wrapping, which changes the height
+  var need2 = wrap.scrollHeight;
+  if (need2 > 40) {
+    var s2 = s * (avail / (need2 * s));
+    if (s2 > 1.9) s2 = 1.9;
+    if (s2 < 0.6) s2 = 0.6;
+    if (Math.abs(s2 - s) > 0.04) {
+      wrap.style.transform = 'scale(' + s2.toFixed(3) + ')';
+      wrap.style.width = (100 / s2).toFixed(2) + '%';
+    }
   }
 }
 
@@ -3760,11 +3823,10 @@ function openSessionModal() {
   o += '<div class="jm-block">';
   o += '<div class="jm-hdr">Join as a courtside device</div>';
   o += '<div class="jm-note">Enter the code shown on the host device, then choose which court this device sits at.</div>';
-  o += '<input class="jm-inp" id="jmCode" placeholder="Session code e.g. PB4821" maxlength="8" autocomplete="off" onkeydown="if(event.key===\'Enter\')sessJoinModal()">';
+  o += '<input class="jm-inp" id="jmCode" placeholder="Session code e.g. PB4821" maxlength="8" autocomplete="off" oninput="lookupSession()" onkeydown="if(event.key===\'Enter\')sessJoinModal()">';
+  o += '<div class="jm-look" id="jmLook">Type the code and the courts will load</div>';
   o += '<select class="jm-inp" id="jmCourt">';
   o += '<option value="">Which court is this device?</option>';
-  var nC = Math.max(ladderState.courts.length, numCourtsConfig, 8);
-  for (var i = 0; i < nC; i++) o += '<option value="'+i+'">Court '+(i+1)+'</option>';
   o += '</select>';
   o += '<button class="jm-btn go" onclick="sessJoinModal()">Join Session</button>';
   o += '<div class="jm-err" id="jmErr"></div>';
@@ -3791,6 +3853,75 @@ function openSessionModal() {
   setTimeout(function(){ if (el('jmCode')) el('jmCode').focus(); }, 60);
 }
 
+// Look the session up as the code is typed, so the court dropdown shows the
+// host's actual court names (Court A, Centre Court, ...) not generic numbers.
+var jmPeek = {code:'', state:null};
+var jmJob  = null;
+
+function lookupSession() {
+  clearTimeout(jmJob);
+  var codeEl = el('jmCode');
+  var look   = el('jmLook');
+  var code   = codeEl ? codeEl.value.trim().toUpperCase() : '';
+  fillCourtOptions(null);
+  if (code.length < 4) {
+    if (look) { look.className = 'jm-look'; look.textContent = 'Type the code and the courts will load'; }
+    return;
+  }
+  if (look) { look.className = 'jm-look busy'; look.textContent = 'Looking up ' + code + '\u2026'; }
+  jmJob = setTimeout(function() {
+    fetch(sessUrl({action:'sess_get', code:code}), {method:'GET', redirect:'follow'})
+      .then(function(r){ return r.text(); })
+      .then(function(t) {
+        var d = null;
+        try { d = JSON.parse(t); } catch (e) {}
+        var look2 = el('jmLook');
+        var cur = el('jmCode') ? el('jmCode').value.trim().toUpperCase() : '';
+        if (cur !== code) return;                    // code changed while waiting
+        if (!d || !d.ok) {
+          jmPeek = {code:'', state:null};
+          fillCourtOptions(null);
+          if (look2) { look2.className = 'jm-look bad'; look2.textContent = 'No session found with that code yet'; }
+          return;
+        }
+        jmPeek = {code:code, state:d.state, rev:d.rev};
+        var labels = courtLabelsFrom(d.state);
+        fillCourtOptions(labels);
+        if (look2) {
+          look2.className = 'jm-look good';
+          look2.innerHTML = '&#10003; Found ' + code + ' &mdash; ' + labels.length + ' court' + (labels.length!==1?'s':'') + ': ' + labels.join(', ');
+        }
+      })
+      .catch(function() {
+        var look3 = el('jmLook');
+        if (look3) { look3.className = 'jm-look bad'; look3.textContent = 'Could not reach the session store'; }
+      });
+  }, 450);
+}
+
+function courtLabelsFrom(st) {
+  var out = [];
+  var n = (st && st.c) ? st.c.length : 0;
+  for (var i = 0; i < n; i++) {
+    var lbl = '';
+    if (st.cl && st.cl[i] && st.cl[i][0]) lbl = st.cl[i][0];
+    out.push(lbl || ('Court ' + (i + 1)));
+  }
+  return out;
+}
+
+function fillCourtOptions(labels) {
+  var sel = el('jmCourt');
+  if (!sel) return;
+  var o = '<option value="">Which court is this device?</option>';
+  if (labels && labels.length) {
+    for (var i = 0; i < labels.length; i++) o += '<option value="'+i+'">'+labels[i]+'</option>';
+  } else {
+    o = '<option value="">Enter the session code first</option>';
+  }
+  sel.innerHTML = o;
+}
+
 function closeSessionModal() {
   var h = el('jmHost');
   if (h) h.parentNode.removeChild(h);
@@ -3808,8 +3939,13 @@ function sessJoinModal() {
   if (errEl) errEl.style.display = 'none';
   if (el('jmCode')) el('jmCode').disabled = true;
 
-  fetch(sessUrl({action:'sess_get', code:code}), {method:'GET', redirect:'follow'})
-    .then(function(r){ return r.text(); })
+  // reuse what the lookup already fetched when it is the same code
+  var pre = (jmPeek.code === code && jmPeek.state)
+    ? Promise.resolve(JSON.stringify({ok:true, rev:jmPeek.rev, state:jmPeek.state}))
+    : fetch(sessUrl({action:'sess_get', code:code}), {method:'GET', redirect:'follow'})
+        .then(function(r){ return r.text(); });
+
+  pre
     .then(function(t) {
       var d = null;
       try { d = JSON.parse(t); } catch (e) {}
@@ -3819,13 +3955,11 @@ function sessJoinModal() {
         return;
       }
       // how many courts does this session actually have?
-      var nAvail = (d.state && d.state.ladder && d.state.ladder.courts)
-                   ? d.state.ladder.courts.length : 0;
-      if (nAvail && ci >= nAvail) {
+      var labs = courtLabelsFrom(d.state);
+      if (labs.length && ci >= labs.length) {
         if (el('jmCode')) el('jmCode').disabled = false;
-        fail('This session only has ' + nAvail + ' court' + (nAvail > 1 ? 's' : '') +
-             '. Pick Court 1' + (nAvail > 1 ? '\u2013' + nAvail : '') +
-             ', or ask the host to raise "Courts Available" and regenerate.');
+        fail('This session has ' + labs.length + ' court' + (labs.length > 1 ? 's' : '') +
+             ': ' + labs.join(', ') + '. Pick one of those, or ask the host to add more courts.');
         return;
       }
       SESS.code = code;
