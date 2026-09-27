@@ -831,7 +831,7 @@ var drawResults     = {};
 var drawDone        = false;
 var drawOrder       = [];
 var revealedSet     = new Set();
-var ladderState     = {registry:{}, courts:[], courtRound:{}, scores:{}, playerStatus:{}, recentPartners:{}, courtSettings:{}, focusCourt:null, genderDecision:{}, nrDecision:{}, snaps:{}, gamesPlayed:{}};
+var ladderState     = {registry:{}, courts:[], courtRound:{}, scores:{}, playerStatus:{}, recentPartners:{}, courtSettings:{}, focusCourt:null, genderDecision:{}, nrDecision:{}, snaps:{}};
 
 var NAMES = ['Alex','Alan','Parker','Aaron','Felicia','Kumbo','Jericio','Peter',
   'Rachel','Ben','Clara','David','Emma','Frank','Grace','Henry',
@@ -1502,7 +1502,7 @@ function generateLadder(pData, cfg, forcedCourts) {
   var sorted = pData.slice().sort(function(a,b){ return getDuprValue(a.dupr) - getDuprValue(b.dupr); });
   var anyIn  = pData.some(function(p){ return p.checkedIn; });
 
-  ladderState = {registry:{}, courts:[], courtRound:{}, scores:{}, playerStatus:{}, recentPartners:{}, courtSettings:{}, focusCourt:null, genderDecision:{}, nrDecision:{}, snaps:{}, gamesPlayed:{}};
+  ladderState = {registry:{}, courts:[], courtRound:{}, scores:{}, playerStatus:{}, recentPartners:{}, courtSettings:{}, focusCourt:null, genderDecision:{}, nrDecision:{}, snaps:{}};
 
   pData.forEach(function(p) {
     ladderState.registry[p.name] = {name:p.name, dupr:p.dupr, globalIdx:p.globalIdx,
@@ -1859,6 +1859,61 @@ function ladderActive(ci) {
   var ct = ladderState.courts[ci];
   if (!ct) return [];
   return ct.playerNames.filter(function(n){ return ladderState.playerStatus[n] === 'active'; });
+}
+
+// Host corrections to gender / age after the schedule has been generated.
+// The registration grid is updated too, so getPlayerData stays in step, and
+// any UNSCORED teams are cleared so the pairing rules re-apply immediately.
+function updateGridField(name, cls, value) {
+  var rows = document.querySelectorAll('.pentry');
+  for (var i = 0; i < rows.length; i++) {
+    var nm = rows[i].querySelector('.pinp');
+    if (!nm || nm.value.trim() !== name) continue;
+    var f = rows[i].querySelector(cls);
+    if (f) f.value = value;
+    return;
+  }
+}
+
+function reformUnscoredTeams(name) {
+  // any live (unscored) round containing this player gets re-paired
+  for (var k in ladderState.scores) {
+    var s = ladderState.scores[k];
+    if (!s || s.sA !== '' || s.sB !== '') continue;        // already scored - leave it
+    var inTeam = (s.tA && s.tA.indexOf(name) !== -1) || (s.tB && s.tB.indexOf(name) !== -1);
+    if (inTeam) { delete s.tA; delete s.tB; }
+  }
+  if (ladderState.genderDecision) {
+    for (var g in ladderState.genderDecision) {
+      var sg = ladderState.scores[g];
+      if (!sg || sg.sA === '') delete ladderState.genderDecision[g];
+    }
+  }
+}
+
+function setPlayerGender(sel) {
+  var name = sel.getAttribute('data-pname');
+  if (!name) return;
+  var v = sel.value;
+  if (!ladderState.registry[name]) ladderState.registry[name] = {name:name, dupr:'', age:-1};
+  ladderState.registry[name].gen = v;
+  updateGridField(name, '.gen-inp', v);
+  reformUnscoredTeams(name);
+  if (SESS.role !== 'solo') sessPushSoon(true);
+  renderLadder();
+}
+
+function setPlayerAge(sel) {
+  var name = sel.getAttribute('data-pname');
+  if (!name) return;
+  var v = parseInt(sel.value);
+  if (isNaN(v)) v = -1;
+  if (!ladderState.registry[name]) ladderState.registry[name] = {name:name, dupr:'', gen:''};
+  ladderState.registry[name].age = v;
+  updateGridField(name, '.age-inp', v >= 0 ? String(v) : '');
+  reformUnscoredTeams(name);
+  if (SESS.role !== 'solo') sessPushSoon(true);
+  renderLadder();
 }
 
 function setPlayerStatus(btn) {
@@ -2232,6 +2287,38 @@ function renderLadder() {
       o += '<span style="font-size:13px;color:#8fb8d4">'+(ct.custom ? 'custom name' : 'default name')+'</span>';
       o += '</div>';
       o += '<div style="height:1px;background:rgba(255,255,255,.14);margin:16px 0"></div>';
+
+      // ---- correct a player's gender or age after generating ----
+      if (cfg.useGender || cfg.useAge) {
+        o += '<div class="ldr-phdr">&#9998; Player Details</div>';
+        o += '<div class="ldr-pnote">Fix a wrong gender or age group here. Teams for the current round ';
+        o += 'are re-formed straight away using the corrected details.</div>';
+        for (var gi2 = 0; gi2 < all.length; gi2++) {
+          var gn   = all[gi2];
+          var greg = ladderState.registry[gn] || {};
+          var gsafe= gn.replace(/"/g, '&quot;');
+          o += '<div class="ldr-mrow">';
+          o += '<span class="ldr-dupr">'+(greg.dupr||'NR')+'</span>';
+          o += '<span class="ldr-mname">'+gn+'</span>';
+          if (cfg.useGender) {
+            o += '<select class="ldr-move" data-pname="'+gsafe+'" onchange="setPlayerGender(this)" title="Gender">';
+            o += '<option value=""'+(!greg.gen?' selected':'')+'>M/F?</option>';
+            o += '<option value="M"'+(greg.gen==='M'?' selected':'')+'>Man</option>';
+            o += '<option value="F"'+(greg.gen==='F'?' selected':'')+'>Lady</option>';
+            o += '</select>';
+          }
+          if (cfg.useAge) {
+            o += '<select class="ldr-move" data-pname="'+gsafe+'" onchange="setPlayerAge(this)" title="Age group">';
+            o += '<option value="-1"'+((typeof greg.age!=='number'||greg.age<0)?' selected':'')+'>Age?</option>';
+            for (var ab2 = 0; ab2 < AGE_BANDS.length; ab2++) {
+              o += '<option value="'+ab2+'"'+(greg.age===ab2?' selected':'')+'>'+AGE_BANDS[ab2]+'</option>';
+            }
+            o += '</select>';
+          }
+          o += '</div>';
+        }
+        o += '<div style="height:1px;background:rgba(255,255,255,.14);margin:16px 0"></div>';
+      }
 
       // ---- result corrections ----
       var hist = courtHistory(ci);
@@ -2795,36 +2882,18 @@ function ladderNextRound(btn) {
   if (ladderState.snaps[ci].length > 25) ladderState.snaps[ci].shift();
 
   var played = tA.concat(tB);
-  // count games so the queue order can favour whoever has played least
-  if (!ladderState.gamesPlayed) ladderState.gamesPlayed = {};
-  played.forEach(function(n) {
-    ladderState.gamesPlayed[n] = (ladderState.gamesPlayed[n] || 0) + 1;
-  });
   ct.playerNames = ct.playerNames.filter(function(n) { return played.indexOf(n) === -1; });
 
-  // Players moving between courts join the BACK of the queue (pure FIFO).
-  // Whoever was already waiting keeps their place in line.
-  // The actual team split happens when the next match is formed (arrangeTeams),
-  // so an arriving pair is never forced to partner each other.
+  // STRICT FIFO. A pair arriving on a court joins the BACK of the queue,
+  // behind everyone already waiting. This applies equally when they are not
+  // changing court: losers on Court 1 and winners on the last court re-queue
+  // at the back so the players waiting get their turn.
+  // Do NOT re-order the queue by games played or anything else - the queue
+  // order IS the fairness rule.
   var placePair = function(destIdx, pair) {
     var dest = ladderState.courts[destIdx];
     var kept = dest.playerNames.filter(function(n) { return pair.indexOf(n) === -1; });
     dest.playerNames = kept.concat(pair);
-
-    // Fairness pass: among the players WAITING (not the four currently on
-    // court), put whoever has played fewest games first. Without this, on a
-    // court with only 4-5 players the same pair can play every single round.
-    var gp = ladderState.gamesPlayed || {};
-    var onCourt = [];
-    var dk = 'c' + destIdx + 'r' + (ladderState.courtRound[destIdx] || 1);
-    var dsc = ladderState.scores[dk];
-    if (dsc && dsc.tA && dsc.tB && dsc.sA === '' && dsc.sB === '') {
-      onCourt = dsc.tA.concat(dsc.tB);      // match in progress - leave it alone
-    }
-    var front = dest.playerNames.filter(function(n){ return onCourt.indexOf(n) !== -1; });
-    var rest  = dest.playerNames.filter(function(n){ return onCourt.indexOf(n) === -1; });
-    rest.sort(function(a, b) { return (gp[a] || 0) - (gp[b] || 0); });   // stable in modern JS
-    dest.playerNames = front.concat(rest);
   };
 
   // winners move up first, then losers move down
