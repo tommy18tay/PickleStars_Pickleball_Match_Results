@@ -831,7 +831,7 @@ var drawResults     = {};
 var drawDone        = false;
 var drawOrder       = [];
 var revealedSet     = new Set();
-var ladderState     = {registry:{}, courts:[], courtRound:{}, scores:{}, playerStatus:{}, recentPartners:{}, courtSettings:{}, focusCourt:null, genderDecision:{}, nrDecision:{}, snaps:{}};
+var ladderState     = {registry:{}, courts:[], courtRound:{}, scores:{}, playerStatus:{}, recentPartners:{}, courtSettings:{}, focusCourt:null, genderDecision:{}, nrDecision:{}, snaps:{}, gamesPlayed:{}};
 
 var NAMES = ['Alex','Alan','Parker','Aaron','Felicia','Kumbo','Jericio','Peter',
   'Rachel','Ben','Clara','David','Emma','Frank','Grace','Henry',
@@ -1105,18 +1105,17 @@ function updateCourtPreview() {
   var n = getPlayerData().length;
   if (n < 4) { box.textContent = 'Enter at least 4 players to see court split preview'; return; }
   var cfg = getConfig();
-  var MAX = (cfg.gameType==='dupr'||cfg.gameType==='duprladder') ? 7 : 999;
-  var need = Math.ceil(n / MAX);
-  var use  = Math.max(numCourtsConfig, need);
-  var sizes = [], pool = n;
-  for (var c = 0; c < use; c++) {
-    var take = Math.min(MAX, Math.ceil(pool / (use - c)));
-    if (take < 1) break;
-    sizes.push(take); pool -= take;
-    if (pool <= 0) break;
-  }
+  var isD = (cfg.gameType==='dupr'||cfg.gameType==='duprladder');
+  var use = Math.max(1, numCourtsConfig);
+  if (!isD) while (use > 1 && Math.floor(n/use) < 4) use--;
+  var sizes = courtSplit(n, use);
   var str = sizes.map(function(s,i){ return 'Court '+(i+1)+': <strong>'+s+'</strong>'; }).join(' &nbsp;&middot;&nbsp; ');
-  var warn = use > numCourtsConfig ? ' <span style="color:var(--orange);font-size:11px">(auto-expanded to '+use+' courts, max 7 per court)</span>' : '';
+  var mx = Math.max.apply(null, sizes);
+  var warn = '';
+  if (isD && mx > 7) {
+    warn = ' <span style="color:var(--orange);font-size:11px">(' + mx + ' on a court &mdash; you will be asked to confirm '
+         + numCourtsConfig + ' or ' + Math.ceil(n/7) + ' courts)</span>';
+  }
   box.innerHTML = n + ' players across ' + sizes.length + ' court' + (sizes.length>1?'s':'') + ': ' + str + warn;
 }
 
@@ -1182,6 +1181,7 @@ function generateSchedule() {
     players = pData.map(function(p){ return p.name; });
 
     SESS.wipeNext = true;   // fresh schedule - discard any stored score history
+    AUTO.sent = {}; AUTO.ladderInit = false; AUTO.needFull = true; AUTO.n = 0;
     if (cfg.gameType === 'duprladder') { generateLadder(pData, cfg); sessPushSoon(true); return; }
     if (cfg.gameType === 'dupr')       { generateDupr(pData, cfg);   sessPushSoon(true); return; }
     generateSet1(pData, cfg);
@@ -1469,14 +1469,40 @@ function renderDupr() {
 // Court 1 = lowest DUPR, Court N = highest.
 // Winners move UP (higher index), losers move DOWN (lower index).
 // ═════════════════════════════════════════════════════════════════
-function generateLadder(pData, cfg) {
-  var numCourts = Math.max(3, numCourtsConfig);
-  var MAX = 7;
+// Work out an even split of n players across c courts (biggest courts first)
+function courtSplit(n, c) {
+  var base = Math.floor(n / c), extra = n % c, out = [];
+  for (var i = 0; i < c; i++) out.push(base + (i < extra ? 1 : 0));
+  return out;
+}
+
+var pendingLadder = null;   // held while the host chooses a court plan
+
+// If the configured court count cannot hold everyone at 7 per court, ask the
+// host rather than silently changing it. 7 is the target, 8 is allowed when the
+// host prefers fewer courts.
+function generateLadder(pData, cfg, forcedCourts) {
+  var attendingCount = pData.filter(function(p){ return p.checkedIn; }).length || pData.length;
+  var wanted = Math.max(3, numCourtsConfig);
+
+  if (!forcedCourts) {
+    var cfgSplit = courtSplit(attendingCount, wanted);
+    var cfgMax   = Math.max.apply(null, cfgSplit);
+    if (cfgMax > 7) {
+      var needed = Math.ceil(attendingCount / 7);
+      pendingLadder = {pData: pData, cfg: cfg};
+      askCourtPlan(attendingCount, wanted, cfgSplit, cfgMax, needed);
+      return;
+    }
+  }
+
+  var numCourts = forcedCourts || wanted;
+  var MAX = Math.max(7, Math.ceil(attendingCount / numCourts));
 
   var sorted = pData.slice().sort(function(a,b){ return getDuprValue(a.dupr) - getDuprValue(b.dupr); });
   var anyIn  = pData.some(function(p){ return p.checkedIn; });
 
-  ladderState = {registry:{}, courts:[], courtRound:{}, scores:{}, playerStatus:{}, recentPartners:{}, courtSettings:{}, focusCourt:null, genderDecision:{}, nrDecision:{}, snaps:{}};
+  ladderState = {registry:{}, courts:[], courtRound:{}, scores:{}, playerStatus:{}, recentPartners:{}, courtSettings:{}, focusCourt:null, genderDecision:{}, nrDecision:{}, snaps:{}, gamesPlayed:{}};
 
   pData.forEach(function(p) {
     ladderState.registry[p.name] = {name:p.name, dupr:p.dupr, globalIdx:p.globalIdx,
@@ -1484,7 +1510,7 @@ function generateLadder(pData, cfg) {
     ladderState.playerStatus[p.name] = (!anyIn || p.checkedIn) ? 'active' : 'waiting';
   });
 
-  var sizes = splitCourts(sorted.length, MAX, numCourts);
+  var sizes = courtSplit(sorted.length, numCourts);
   var start = 0;
   for (var c = 0; c < sizes.length; c++) {
     var group = sorted.slice(start, start + sizes[c]);
@@ -1766,6 +1792,69 @@ function setGenderDecision(btn) {
   renderLadder();
 }
 
+// Ask the host how to divide the players when the configured court count
+// would put more than 7 on a court.
+function askCourtPlan(n, wanted, cfgSplit, cfgMax, needed) {
+  var altSplit = courtSplit(n, needed);
+  var altMax   = Math.max.apply(null, altSplit);
+
+  var o = '';
+  o += '<div class="sp-veil" id="cpVeil">';
+  o += '<div class="sp-box" style="max-width:560px">';
+  o += '<div class="sp-title">&#127967; How many courts tonight?</div>';
+  o += '<div class="sp-sub">'+n+' players checked in &middot; target is 7 per court</div>';
+
+  o += '<div class="jm-block">';
+  o += '<div class="jm-hdr">Keep '+wanted+' courts</div>';
+  o += '<div class="jm-note">Split: <strong>'+cfgSplit.join(' + ')+'</strong>'+
+       ' &mdash; up to <strong>'+cfgMax+' players</strong> on a court.<br>'+
+       (cfgMax > 8
+         ? 'That is well over the 7 target, so players will sit out for longer between games.'
+         : 'Slightly over the 7 target, which is fine and gives a longer queue on each court.')+
+       '</div>';
+  o += '<button class="jm-btn go" onclick="applyCourtPlan('+wanted+')">Use '+wanted+' courts ('+cfgSplit.join('+')+')</button>';
+  o += '</div>';
+
+  o += '<div class="jm-block">';
+  o += '<div class="jm-hdr">Use '+needed+' courts</div>';
+  o += '<div class="jm-note">Split: <strong>'+altSplit.join(' + ')+'</strong>'+
+       ' &mdash; max <strong>'+altMax+' players</strong> per court, divided evenly by DUPR.<br>'+
+       'More courts means more games each and shorter waits, if you have the space.</div>';
+  o += '<button class="jm-btn host" onclick="applyCourtPlan('+needed+')">Use '+needed+' courts ('+altSplit.join('+')+')</button>';
+  o += '</div>';
+
+  o += '<button class="sp-btn close" style="width:100%" onclick="cancelCourtPlan()">Cancel</button>';
+  o += '</div></div>';
+
+  var host = document.createElement('div');
+  host.id = 'cpHost';
+  host.innerHTML = o;
+  document.body.appendChild(host);
+}
+
+function closeCourtPlan() {
+  var h = el('cpHost');
+  if (h) h.parentNode.removeChild(h);
+}
+
+function cancelCourtPlan() {
+  pendingLadder = null;
+  closeCourtPlan();
+}
+
+function applyCourtPlan(nCourts) {
+  closeCourtPlan();
+  if (!pendingLadder) return;
+  numCourtsConfig = nCourts;
+  if (el('courtCount')) el('courtCount').textContent = nCourts;
+  updateCourtPreview();
+  var p = pendingLadder;
+  pendingLadder = null;
+  generateLadder(p.pData, p.cfg, nCourts);
+  SESS.wipeNext = true;
+  if (SESS.role !== 'solo') sessPushSoon(true);
+}
+
 function ladderActive(ci) {
   var ct = ladderState.courts[ci];
   if (!ct) return [];
@@ -1848,9 +1937,14 @@ function renderLadder() {
     var decision = ladderState.genderDecision[key];
     var first4 = act.slice(0, 4);
     var stored = (sc.tA && sc.tB) ? sc.tA.concat(sc.tB) : null;
+    // The stored teams are only still valid if they are EXACTLY the front four
+    // of the queue. Checking membership of the whole active list was wrong:
+    // on the top and bottom courts the winners/losers stay on court, so the
+    // old four matched and were never rotated out.
     var sameSet = false;
     if (stored && stored.length === 4 && first4.length === 4) {
-      sameSet = stored.every(function(n){ return act.indexOf(n) !== -1; });
+      sameSet = stored.every(function(n){ return first4.indexOf(n) !== -1; }) &&
+                first4.every(function(n){ return stored.indexOf(n) !== -1; });
     }
     var askInfo = null;
     if (first4.length === 4 && !sameSet) {
@@ -2360,6 +2454,7 @@ function fixScore(inp) {
   inp.value = String(v);
   if (side === 'a') sc.sA = String(v); else sc.sB = String(v);
   SESS.dirty[key] = 1;                 // make sure this correction is synced
+  AUTO.needFull = true;                // a written row changed - rewrite the sheet
   if (SESS.role !== 'solo') sessPushSoon(true);   // full push, not a patch
   scheduleAutoSync();
   renderLadder();
@@ -2384,6 +2479,7 @@ function undoRound(btn) {
     ladderState.scores[snap.key].sA = '';
     ladderState.scores[snap.key].sB = '';
     SESS.dirty[snap.key] = 1;
+    AUTO.needFull = true;
     ladderState.scores[snap.key].tA = snap.score.tA.slice();
     ladderState.scores[snap.key].tB = snap.score.tB.slice();
   }
@@ -2699,6 +2795,11 @@ function ladderNextRound(btn) {
   if (ladderState.snaps[ci].length > 25) ladderState.snaps[ci].shift();
 
   var played = tA.concat(tB);
+  // count games so the queue order can favour whoever has played least
+  if (!ladderState.gamesPlayed) ladderState.gamesPlayed = {};
+  played.forEach(function(n) {
+    ladderState.gamesPlayed[n] = (ladderState.gamesPlayed[n] || 0) + 1;
+  });
   ct.playerNames = ct.playerNames.filter(function(n) { return played.indexOf(n) === -1; });
 
   // Players moving between courts join the BACK of the queue (pure FIFO).
@@ -2709,6 +2810,21 @@ function ladderNextRound(btn) {
     var dest = ladderState.courts[destIdx];
     var kept = dest.playerNames.filter(function(n) { return pair.indexOf(n) === -1; });
     dest.playerNames = kept.concat(pair);
+
+    // Fairness pass: among the players WAITING (not the four currently on
+    // court), put whoever has played fewest games first. Without this, on a
+    // court with only 4-5 players the same pair can play every single round.
+    var gp = ladderState.gamesPlayed || {};
+    var onCourt = [];
+    var dk = 'c' + destIdx + 'r' + (ladderState.courtRound[destIdx] || 1);
+    var dsc = ladderState.scores[dk];
+    if (dsc && dsc.tA && dsc.tB && dsc.sA === '' && dsc.sB === '') {
+      onCourt = dsc.tA.concat(dsc.tB);      // match in progress - leave it alone
+    }
+    var front = dest.playerNames.filter(function(n){ return onCourt.indexOf(n) !== -1; });
+    var rest  = dest.playerNames.filter(function(n){ return onCourt.indexOf(n) === -1; });
+    rest.sort(function(a, b) { return (gp[a] || 0) - (gp[b] || 0); });   // stable in modern JS
+    dest.playerNames = front.concat(rest);
   };
 
   // winners move up first, then losers move down
@@ -3181,21 +3297,69 @@ function queueSheets(fn2) {
   return sheetQueue;
 }
 
+var SHEET_URL_CAP = 7000;   // stay clear of the ~8k practical URL limit
+
+function sendOne(url) {
+  return fetch(url, {method:'GET', redirect:'follow'})
+    .then(function(r){ return r.text(); })
+    .then(function(t){ return t.indexOf('ok') !== -1 ? true : 'soft'; })
+    .catch(function() {
+      // fetch blocked - deliver it with a tag request instead
+      return beaconGet(url).then(function(){ return 'beacon'; });
+    });
+}
+
+function urlFor(obj) {
+  return SHEETS_URL + '?data=' + encodeURIComponent(JSON.stringify(obj));
+}
+
+// Sheet exports are sent in CHUNKS. A full ladder log outgrew a single URL at
+// round 12, which is why syncing appeared to stop after 11 rounds. The first
+// chunk clears the tab and writes the header (mode 'start'); the rest append.
 function pushSheets(type, payload) {
-  var body = JSON.stringify(Object.assign({type:type}, payload));
-  var url  = SHEETS_URL + '?data=' + encodeURIComponent(body);
-  if (url.length > 7800) {
-    toast('That sheet is too large to send in one request', false);
-    return Promise.resolve(false);
+  var rows = payload.rows;
+  if (!rows || !rows.length) {
+    var one = Object.assign({type:type}, payload);
+    if (urlFor(one).length > SHEET_URL_CAP) {
+      toast('That sheet is too large to send', false);
+      return Promise.resolve(false);
+    }
+    return queueSheets(function(){ return sendOne(urlFor(one)); });
   }
+
+  // how many rows fit in one request?
+  var meta = Object.assign({}, payload);
+  delete meta.rows;
+  var forced = meta.forceMode;      // 'append' keeps existing sheet rows
+  delete meta.forceMode;
+  var probe    = {type:type, mode:'append', rows:[], part:1, parts:9};
+  var overhead = urlFor(Object.assign({}, probe, meta)).length;
+  // true marginal cost of a row = difference between two rows and one row
+  var one = urlFor(Object.assign({}, probe, meta, {rows: rows.slice(0, 1)})).length;
+  var two = urlFor(Object.assign({}, probe, meta, {rows: rows.slice(0, 2)})).length;
+  var perRow = Math.max(40, (rows.length > 1 ? (two - one) : (one - overhead)));
+  var per = Math.max(1, Math.floor((SHEET_URL_CAP - overhead - 150) / perRow));
+
+  var chunks = [];
+  for (var i = 0; i < rows.length; i += per) chunks.push(rows.slice(i, i + per));
+
   return queueSheets(function() {
-    return fetch(url, {method:'GET', redirect:'follow'})
-      .then(function(r){ return r.text(); })
-      .then(function(t){ return t.indexOf('ok') !== -1 ? true : 'soft'; })
-      .catch(function() {
-        // fetch blocked - deliver it with a tag request instead
-        return beaconGet(url).then(function(){ return 'beacon'; });
+    var result = true;
+    var step = function(idx) {
+      if (idx >= chunks.length) return Promise.resolve(result);
+      var obj = Object.assign({
+        type: type,
+        mode: (idx === 0 && forced !== 'append') ? 'start' : 'append',
+        rows: chunks[idx],
+        part: idx + 1,
+        parts: chunks.length
+      }, meta);
+      return sendOne(urlFor(obj)).then(function(r) {
+        if (r !== true) result = r;          // remember 'soft' / 'beacon'
+        return step(idx + 1);
       });
+    };
+    return step(0);
   });
 }
 
@@ -3263,8 +3427,8 @@ function syncRankings() {
     lst = lst.filter(function(r){ return r.s1>0||r.s2>0||r.s3>0; }).sort(function(a,b){ return (b.s1+b.s2+b.s3)-(a.s1+a.s2+a.s3); });
     rows = lst.map(function(r,i){ return [m.date, m.session, m.notes||'\u2014', i+1, r.n, r.s1, r.s2, r.s3, r.s1+r.s2+r.s3]; });
   }
-  pushSheets('rankings', {rows:rows, date:m.date, session:m.session, notes:m.notes})
-    .then(function(ok){ toast(syncMsg(ok, 'Rankings'), ok !== false); });
+  return pushSheets('rankings', {rows:rows, date:m.date, session:m.session, notes:m.notes})
+    .then(function(ok){ toast(syncMsg(ok, 'Rankings'), ok !== false); return ok; });
 }
 
 function syncMatches() {
@@ -3296,8 +3460,8 @@ function syncMatches() {
       });
     });
   }
-  pushSheets('matches', {rows:rows, date:m.date, session:m.session, notes:m.notes})
-    .then(function(ok){ toast(syncMsg(ok, rows.length+' matches'), ok !== false); });
+  return pushSheets('matches', {rows:rows, date:m.date, session:m.session, notes:m.notes})
+    .then(function(ok){ toast(syncMsg(ok, rows.length+' matches'), ok !== false); return ok; });
 }
 
 // ═════════════════════════════════════════════════════════════════
@@ -3306,7 +3470,8 @@ function syncMatches() {
 // rewrite the same tabs at once. Writes are debounced and throttled so a burst
 // of scoring does not hammer Apps Script.
 // ═════════════════════════════════════════════════════════════════
-var AUTO = { on: false, job: null, last: 0, busy: false, at: null };
+var AUTO = { on: false, job: null, last: 0, busy: false, at: null, took: 0,
+             sent: {}, ladderInit: false, needFull: false, n: 0 };
 var AUTO_MIN_GAP = 20000;   // never more often than every 20s
 var AUTO_DELAY   = 4000;    // settle for 4s after the last change
 
@@ -3321,6 +3486,7 @@ function toggleAutoSync(cb) {
       cb.checked = false;
       return;
     }
+    AUTO.sent = {}; AUTO.ladderInit = false; AUTO.needFull = true; AUTO.n = 0;
     toast('Auto sync on \u2014 Sheets updates after each round', true);
     scheduleAutoSync();
   } else {
@@ -3333,24 +3499,49 @@ function toggleAutoSync(cb) {
 function scheduleAutoSync() {
   if (!AUTO.on || SESS.role === 'court') return;
   clearTimeout(AUTO.job);
-  var wait = Math.max(AUTO_DELAY, AUTO_MIN_GAP - (Date.now() - AUTO.last));
+  var gap  = Math.max(AUTO_MIN_GAP, Math.round((AUTO.took || 0) * 1.5));
+  var wait = Math.max(AUTO_DELAY, gap - (Date.now() - AUTO.last));
   AUTO.job = setTimeout(runAutoSync, wait);
 }
 
+// A big session sends many chunked requests, so wait for the real completion
+// rather than a fixed timeout, and let the next gap grow with how long it took.
+// (48 players over 30 rounds is ~10 requests, roughly 15-25 seconds.)
 function runAutoSync() {
   if (!AUTO.on || AUTO.busy) return;
-  var cfg = getConfig();
+  var cfg   = getConfig();
+  var t0    = Date.now();
   AUTO.busy = true;
-  AUTO.last = Date.now();
-  if (cfg.gameType === 'duprladder') {
-    syncLadder();
-    setTimeout(function(){ syncLadderRankings(); }, 1800);
-    setTimeout(function(){ AUTO.busy = false; AUTO.at = new Date(); paintAutoBar(); }, 3600);
-  } else {
-    syncMatches();
-    setTimeout(function(){ syncRankings(); }, 1800);
-    setTimeout(function(){ AUTO.busy = false; AUTO.at = new Date(); paintAutoBar(); }, 3600);
-  }
+  AUTO.last = t0;
+  paintAutoBar();
+
+  // Ladder: append only the new matches (usually 1 row, ~1-2s).
+  // Standings: every row changes each round, so a full rewrite is unavoidable -
+  // do it every 4th sync, or whenever a correction forces it.
+  AUTO.n = (AUTO.n || 0) + 1;
+  var isLadder = (cfg.gameType === 'duprladder');
+  var doStand  = AUTO.needFull || (AUTO.n % 4 === 0);
+
+  var first = isLadder
+    ? (AUTO.needFull ? syncLadder : syncLadderNew)
+    : syncMatches;
+  var second = function() {
+    if (!doStand) return Promise.resolve(true);
+    return isLadder ? syncLadderRankings() : syncRankings();
+  };
+  AUTO.needFull = false;
+
+  Promise.resolve()
+    .then(function(){ return first(); })
+    .then(function(){ return second(); })
+    .catch(function(e){ console.warn('auto sync:', e); })
+    .then(function() {
+      AUTO.took = Date.now() - t0;
+      AUTO.busy = false;
+      AUTO.at   = new Date();
+      AUTO.last = Date.now();          // throttle from the END of the write
+      paintAutoBar();
+    });
 }
 
 function autoStamp() {
@@ -3361,9 +3552,58 @@ function autoStamp() {
 
 function paintAutoBar() {
   var s = el('autoStat');
-  if (s) s.innerHTML = AUTO.on
-    ? 'last sync <strong>' + autoStamp() + '</strong>'
-    : 'manual';
+  if (!s) return;
+  if (!AUTO.on)     { s.innerHTML = 'manual'; return; }
+  if (AUTO.busy)    { s.innerHTML = 'writing\u2026'; return; }
+  var extra = AUTO.took > 6000 ? ' (' + Math.round(AUTO.took / 1000) + 's)' : '';
+  s.innerHTML = 'last sync <strong>' + autoStamp() + '</strong>' + extra;
+}
+
+// Build the ladder match rows. onlyNew limits it to matches that have not
+// been written to the sheet yet, which turns a 7-request rewrite into a
+// 1-request append after each round.
+function ladderRows(m, onlyNew) {
+  var rows = [], keys = [];
+  for (var key in ladderState.scores) {
+    var sc = ladderState.scores[key];
+    if (!sc || !sc.tA || !sc.tB || sc.sA === '' || sc.sB === '') continue;
+    if (onlyNew && AUTO.sent[key]) continue;
+    var mm = key.match(/c(\d+)r(\d+)/);
+    if (!mm) continue;
+    var cN = parseInt(mm[1]) + 1, rN = parseInt(mm[2]);
+    var vA = parseFloat(sc.sA), vB = parseFloat(sc.sB);
+    if (isNaN(vA) || isNaN(vB)) continue;
+    var dA = vA - vB, dB = vB - vA;
+    var win  = dA >= 0 ? sc.tA.join(' & ') : sc.tB.join(' & ');
+    var cLab = (ladderState.courts[cN-1] && ladderState.courts[cN-1].label)
+               ? ladderState.courts[cN-1].label : 'Court ' + cN;
+    rows.push([m.date, m.session, m.notes || '\u2014', cLab, rN,
+               sc.tA.join(' & '), vA, vB, sc.tB.join(' & '),
+               (dA >= 0 ? '+' : '') + dA, (dB >= 0 ? '+' : '') + dB, win]);
+    keys.push(key);
+  }
+  // sort by round then court so the sheet reads chronologically
+  var order = rows.map(function(r, i){ return i; });
+  order.sort(function(a, b){ return rows[a][4] - rows[b][4] || String(rows[a][3]).localeCompare(String(rows[b][3])); });
+  return {rows: order.map(function(i){ return rows[i]; }),
+          keys: order.map(function(i){ return keys[i]; })};
+}
+
+// Fast path: append just the matches finished since the last write.
+function syncLadderNew() {
+  var m = getMeta();
+  var d = ladderRows(m, true);
+  if (!d.rows.length) return Promise.resolve(true);
+  var mode = AUTO.ladderInit ? 'append' : 'start';
+  return pushSheets('ladder', {rows:d.rows, date:m.date, session:m.session, notes:m.notes, forceMode:mode})
+    .then(function(ok) {
+      if (ok !== false) {
+        AUTO.ladderInit = true;
+        d.keys.forEach(function(k){ AUTO.sent[k] = 1; });
+      }
+      toast(syncMsg(ok, d.rows.length + (d.rows.length === 1 ? ' match' : ' matches')), ok !== false);
+      return ok;
+    });
 }
 
 // Ladder match log: every scored round, with point difference and winner
@@ -3388,8 +3628,18 @@ function syncLadder() {
   }
   rows.sort(function(a, b) { return a[4] - b[4] || String(a[3]).localeCompare(String(b[3])); });
   if (!rows.length) { toast('No ladder scores to sync yet', false); return; }
-  pushSheets('ladder', {rows:rows, date:m.date, session:m.session, notes:m.notes})
-    .then(function(ok){ toast(syncMsg(ok, rows.length+' ladder matches'), ok !== false); });
+  return pushSheets('ladder', {rows:rows, date:m.date, session:m.session, notes:m.notes})
+    .then(function(ok) {
+      if (ok !== false) {                 // whole log rewritten - nothing pending
+        AUTO.ladderInit = true;
+        for (var k in ladderState.scores) {
+          var s2 = ladderState.scores[k];
+          if (s2 && s2.tA && s2.sA !== '' && s2.sB !== '') AUTO.sent[k] = 1;
+        }
+      }
+      toast(syncMsg(ok, rows.length+' ladder matches'), ok !== false);
+      return ok;
+    });
 }
 
 // Per-player ladder standings, including round-by-round points
@@ -3446,8 +3696,8 @@ function syncLadderRankings() {
     row.push(r2.pts);
     return row;
   });
-  pushSheets('ladderrank', {rows:rows, header:hdr, date:m.date, session:m.session, notes:m.notes})
-    .then(function(ok){ toast(syncMsg(ok, 'Ladder standings, '+arr.length+' players'), ok !== false); });
+  return pushSheets('ladderrank', {rows:rows, header:hdr, date:m.date, session:m.session, notes:m.notes})
+    .then(function(ok){ toast(syncMsg(ok, 'Ladder standings, '+arr.length+' players'), ok !== false); return ok; });
 }
 
 function syncLuckyDraw() {
